@@ -210,6 +210,7 @@ class PriceItem(TenantMixin, Base):
     qty_rule: Mapped[str] = mapped_column(String(20), default="fixed")
     qty_factor: Mapped[Decimal] = mapped_column(Numeric(10, 3), default=Decimal("1"))
     phase: Mapped[Optional[int]] = mapped_column(Integer)
+    inverter_phase: Mapped[Optional[int]] = mapped_column(Integer)
     system_kind: Mapped[Optional[str]] = mapped_column(String(20))
     min_kw: Mapped[Optional[float]] = mapped_column(Numeric(8, 2))
     max_kw: Mapped[Optional[float]] = mapped_column(Numeric(8, 2))

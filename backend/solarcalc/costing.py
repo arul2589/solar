@@ -91,6 +91,7 @@ class PriceRule:
                                    # la_cable_m | per_string | per_mppt | panel | inverter
     qty_factor: Decimal = Decimal("1")
     phase: Optional[int] = None    # only for this supply phase
+    inverter_phase: Optional[int] = None   # only for this inverter phase (e.g. ACDB)
     system_kind: Optional[str] = None   # on_grid | hybrid | off_grid
     min_kw: Optional[float] = None
     max_kw: Optional[float] = None
@@ -125,6 +126,8 @@ def build_lines(rules: Sequence[PriceRule], ctx: dict) -> list[Line]:
     out = []
     for r in sorted(rules, key=lambda x: (x.sort_order, x.code)):
         if r.phase is not None and r.phase != ctx.get("phase"):
+            continue
+        if r.inverter_phase is not None and r.inverter_phase != (ctx.get("inverter") or {}).get("phase"):
             continue
         if r.system_kind and r.system_kind != ctx.get("system_kind", "on_grid"):
             continue

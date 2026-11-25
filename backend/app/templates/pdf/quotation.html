@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Quotation {{ q.number }}</title>
+<style>
+  @page { size: A4; margin: 14mm 12mm 16mm 12mm;
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #777; }
+    @bottom-left { content: "Quotation #{{ q.number }}{% if internal %} - INTERNAL ESTIMATE, NOT FOR CUSTOMER{% endif %}"; font-size: 8pt; color: #777; } }
+  body { font-family: "Noto Sans", "Noto Sans Tamil", "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #1d2327; }
+  .head { display: flex; align-items: flex-start; gap: 12px; border-bottom: 1.5px solid #333; padding-bottom: 8px; }
+  .head .logo img { height: 64px; }
+  .head .co { flex: 1; text-align: center; }
+  .head .co h1 { margin: 0; font-size: 16pt; }
+  .head .title { font-size: 16pt; font-weight: 700; min-width: 120px; text-align: right; }
+  .meta { display: flex; justify-content: space-between; margin: 10px 0; }
+  .meta .to { max-width: 65%; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.items th { background: #eef1f3; font-size: 8.5pt; text-align: left; padding: 5px 4px; border-bottom: 1px solid #999; }
+  table.items td { padding: 5px 4px; border-bottom: 1px dotted #bbb; vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .desc b { display: block; }
+  .details { color: #555; font-size: 8.5pt; white-space: pre-line; }
+  .pct { color: #555; font-size: 8pt; }
+  table.tot { margin-left: auto; margin-top: 6px; border-collapse: collapse; min-width: 260px; }
+  table.tot td { padding: 4px 6px; }
+  table.tot tr.grand td { border-top: 1.5px solid #333; font-weight: 700; font-size: 11pt; }
+  .words { margin-top: 6px; font-style: italic; }
+  .box { border: 1px solid #ccc; border-radius: 4px; padding: 8px; margin-top: 10px; page-break-inside: avoid; }
+  .pre { white-space: pre-line; }
+  .cols { display: flex; gap: 14px; }
+  .cols > div { flex: 1; }
+  .disclaimer { background: #fffaeb; border: 1px solid #fedf89; padding: 6px 8px; margin-top: 10px; font-size: 8.5pt; }
+  .internal { background: #fef3f2; border: 1px solid #fecdca; padding: 6px 8px; margin-top: 10px; }
+  .sign { text-align: right; margin-top: 26px; }
+  @page landscape { size: A4 landscape; margin: 12mm; }
+  .diagram { page: landscape; page-break-before: always; }
+  .diagram img { width: 100%; }
+  h2 { font-size: 11pt; margin: 6px 0; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="logo">{% if logo %}<img src="{{ logo }}">{% endif %}</div>
+    <div class="co">
+      <h1>{{ company.name }}</h1>
+      {% if company.contact_person %}<div>{{ company.contact_person }}</div>{% endif %}
+      <div class="pre">{{ company.address }}</div>
+      <div>{{ company.phone }}{% if company.email %} · {{ company.email }}{% endif %}</div>
+      {% if company.gstin %}<div><b>GSTIN:</b> {{ company.gstin }}</div>{% endif %}
+    </div>
+    <div class="title">{% if internal %}Internal estimate{% else %}Quotation{% endif %}</div>
+  </div>
+
+  <div class="meta">
+    <div class="to">
+      <b>To,</b><br>
+      {{ customer.name }}<br>
+      <span class="pre">{{ site.address }}</span>{% if site.district %}, {{ site.district }}{% endif %} {{ site.pincode or "" }}<br>
+      {% if site.eb_consumer_no %}TNEB NUMBER - {{ site.eb_consumer_no }} / {% endif %}{{ site.phase }}-PHASE{% if site.tariff %} / {{ site.tariff }} TARIFF{% endif %}{% if site.sanction_load_kw %} / SANCTION LOAD - {{ site.sanction_load_kw|float }} KW{% endif %}
+    </div>
+    <div class="num">
+      <b>Quotation#</b> {{ q.number }}<br>
+      <b>Date:</b> {{ q.quote_date.strftime('%d/%m/%Y') }}<br>
+      <b>Valid until:</b> {{ q.valid_until.strftime('%d/%m/%Y') }}<br>
+      <b>Ref:</b> {{ req.reference }}
+    </div>
+  </div>
+
+  <p>Dear Sir/Madam,<br>Thank you for your valuable inquiry. We are pleased to quote as below for a <b>{{ q.system_summary }}</b> rooftop solar system:</p>
+
+  <table class="items">
+    <thead><tr><th>#</th><th>DESCRIPTION</th><th>HSN</th><th class="num">QTY</th><th class="num">PRICE</th><th class="num">TAX</th><th class="num">TOTAL</th>{% if internal %}<th class="num">COST</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for l in lines %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td class="desc"><b>{{ l.description }}</b>{% if l.details %}<span class="details">{{ l.details }}</span>{% endif %}</td>
+        <td>{{ l.hsn }}</td>
+        <td class="num">{{ '%g' % l.qty|float }}<br><span class="pct">{{ l.unit }}</span></td>
+        <td class="num">₹{{ l.unit_price|inr }}</td>
+        <td class="num">₹{{ l.tax|inr }}<br><span class="pct">{{ '%.2f' % l.gst_pct|float }}%</span></td>
+        <td class="num">₹{{ l.total|inr }}</td>
+        {% if internal %}<td class="num">{% if l.cost_price is not none %}₹{{ l.cost_price|inr }}{% else %}-{% endif %}</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <table class="tot">
+    <tr><td>SUB TOTAL</td><td class="num">₹{{ q.subtotal|inr }}</td></tr>
+    <tr><td>TAX</td><td class="num">₹{{ q.tax|inr }}</td></tr>
+    <tr class="grand"><td>GRAND TOTAL</td><td class="num">₹{{ q.grand_total|inr }}</td></tr>
+  </table>
+  <div class="words">{{ words }}</div>
+
+  {% if internal %}
+  <div class="internal"><b>Internal estimate (Admin/Sales only).</b>
+    {% if q.cost_total is not none %}Cost ₹{{ q.cost_total|inr }} · Margin before tax ₹{{ (q.subtotal - q.cost_total)|inr }}{% else %}Cost prices missing on some lines; margin not computed.{% endif %}
+    {% if outputs.savings and outputs.savings.low %}<br>Savings estimate: ₹{{ outputs.savings.low.annual_saving|inr }} - ₹{{ outputs.savings.high.annual_saving|inr }} per year; payback {{ outputs.savings.high.payback_years }}-{{ outputs.savings.low.payback_years }} years.{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="disclaimer">{{ disclaimer }}{% if disclaimer != disclaimer_en %}<br>{{ disclaimer_en }}{% endif %}</div>
+
+  <p>{{ qs.closing_text }}</p>
+  {% if company.services_text %}<div class="pre small">{{ company.services_text }}</div>{% endif %}
+
+  <div class="cols">
+    <div class="box"><h2>TERMS &amp; CONDITIONS</h2><div class="pre">{{ q.terms_text }}</div></div>
+    <div class="box"><h2>PAYMENT INSTRUCTIONS</h2>
+      {% if company.bank_account_name %}A/C NAME: {{ company.bank_account_name }}<br>{% endif %}
+      {% if company.bank_name %}BANK: {{ company.bank_name }}<br>{% endif %}
+      {% if company.bank_branch %}BRANCH: {{ company.bank_branch }}<br>{% endif %}
+      {% if company.bank_ifsc %}IFSC: {{ company.bank_ifsc }}<br>{% endif %}
+      {% if company.upi_id %}UPI ID: {{ company.upi_id }}<br>{% endif %}
+      Account number shared on request by phone.
+    </div>
+  </div>
+  <div class="box"><h2>SCOPE</h2><div class="pre">{{ q.scope_text }}</div></div>
+  <div class="box"><h2>WARRANTY</h2><div class="pre">{{ q.warranty_text }}</div></div>
+  {% if q.notes %}<div class="box"><h2>NOTES</h2><div class="pre">{{ q.notes }}</div></div>{% endif %}
+  <p>Note: TNEB network charges are applicable for each billing cycle as per TNERC orders.</p>
+
+  <div class="sign">For, {{ company.name }}<br><br><br>{{ company.signatory }}</div>
+
+  {% if diagrams.sld %}
+  <div class="diagram"><h2>Single-line diagram (indicative)</h2><img src="{{ diagrams.sld }}"></div>
+  {% endif %}
+  {% if diagrams.roof %}
+  <div class="diagram"><h2>Roof layout (indicative, confirmed at site visit)</h2><img src="{{ diagrams.roof }}"></div>
+  {% endif %}
+</body>
+</html>

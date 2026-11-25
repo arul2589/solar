@@ -51,7 +51,8 @@ def price_rules(db: Session) -> list[PriceRule]:
     rows = db.scalars(select(PriceItem).where(PriceItem.active.is_(True))).all()
     return [PriceRule(code=r.code, name=r.name, unit_price=Decimal(str(r.unit_price)), gst_pct=Decimal(str(r.gst_pct)),
                       unit=r.unit, hsn=r.hsn, details=r.details, qty_rule=r.qty_rule,
-                      qty_factor=Decimal(str(r.qty_factor)), phase=r.phase, system_kind=r.system_kind,
+                      qty_factor=Decimal(str(r.qty_factor)), phase=r.phase, inverter_phase=r.inverter_phase,
+                      system_kind=r.system_kind,
                       min_kw=f(r.min_kw), max_kw=f(r.max_kw), requires_la=r.requires_la,
                       cost_price=None if r.cost_price is None else Decimal(str(r.cost_price)), sort_order=r.sort_order)
             for r in rows]

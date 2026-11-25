@@ -52,7 +52,7 @@ def rules_276():
         PriceRule("STRUCTURE", "High raising pre-galvanised structure with fasteners", D("6850"), D("18"), "KW",
                   "7308", "", "per_kw", sort_order=3),
         PriceRule("ACDB_1PH", "ACDB 1 In 1 Out, 1-Ph, MCB+SPD", D("2100"), D("18"), "No", "85371000", "", "fixed",
-                  phase=1, sort_order=4),
+                  inverter_phase=1, sort_order=4),
         PriceRule("DCDB", "DCDB 1-6 kW 1 string (DC fuse 1000V + MCB 500V + SPD 600)", D("2500"), D("18"), "No",
                   "85371000", "", "per_mppt", sort_order=5),
         PriceRule("EARTH_ELECTRODE", "Earthing electrode Cu bonded with chemical bag", D("1500"), D("18"), "No",

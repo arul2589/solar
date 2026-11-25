@@ -16,3 +16,4 @@ pillow==11.*
 weasyprint==63.*
 anthropic>=0.40
 pytest==8.*
+pypdf==5.*

@@ -10,7 +10,7 @@ const TABLES: Record<string, { path: string; title: string; cols: Col[]; blank: 
     cols: [{ k: "sort_order", l: "#", w: 50 }, { k: "code", l: "Code", w: 120 }, { k: "name", l: "Name", w: 260 }, { k: "details", l: "Details", w: 200 },
       { k: "hsn", l: "HSN", w: 90 }, { k: "unit", l: "Unit", w: 80 }, { k: "unit_price", l: "Price ₹", w: 90 }, { k: "cost_price", l: "Cost ₹", w: 90 },
       { k: "gst_pct", l: "GST %", w: 60 }, { k: "qty_rule", l: "Qty rule", w: 110 }, { k: "qty_factor", l: "× factor", w: 70 },
-      { k: "phase", l: "Phase", w: 60 }, { k: "system_kind", l: "Kind", w: 90 }, { k: "min_kw", l: "Min kW", w: 70 }, { k: "max_kw", l: "Max kW", w: 70 },
+      { k: "phase", l: "Supply ph", w: 60 }, { k: "inverter_phase", l: "Inv ph", w: 60 }, { k: "system_kind", l: "Kind", w: 90 }, { k: "min_kw", l: "Min kW", w: 70 }, { k: "max_kw", l: "Max kW", w: 70 },
       { k: "requires_la", l: "LA only", type: "bool" }, { k: "is_placeholder", l: "Placeholder", type: "bool" }, { k: "active", l: "Active", type: "bool" }],
     blank: { code: "", name: "", unit: "No", unit_price: "0", gst_pct: "18", qty_rule: "fixed", qty_factor: "1", sort_order: 100, active: true },
   },
@@ -52,7 +52,7 @@ export default function Catalogue() {
       {tab === "price" && (
         <div className="card small muted">
           <strong>Qty rules:</strong> fixed (1 × factor) · per_kw (nominal kW) · per_kwp · per_panel · panel (panel model price) · inverter (inverter model price) ·
-          dc_cable_m · ac_cable_m · earth_pits · la_cable_m · per_string · per_mppt. Filters: phase, kind (on_grid/hybrid), min/max kWp, LA only.
+          dc_cable_m · ac_cable_m · earth_pits · la_cable_m · per_string · per_mppt. Filters: supply phase, inverter phase, kind (on_grid/hybrid), min/max kWp, LA only.
           Name/details for panel and inverter rows can use {"{model}"}, {"{wp}"}, {"{panel_count}"}, {"{dc_wp}"}, {"{nominal_kw}"}.
         </div>
       )}
