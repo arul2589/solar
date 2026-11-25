@@ -62,7 +62,7 @@ export default function Settings() {
       {err && <div className="err">{err}</div>}
       {msg && <div className="ok">{msg}</div>}
       <div className="tabs">
-        {["placeholders", "company", "calculation", "tariff", "quotation", "email", "templates", "features"].map((t) => (
+        {["placeholders", "company", "calculation", "tariff", "quotation", "email", "templates", "project", "features"].map((t) => (
           <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>
         ))}
       </div>
@@ -185,6 +185,14 @@ export default function Settings() {
         </div>
       )}
 
+      {tab === "project" && (
+        <div className="card">
+          <h2>Project pack defaults</h2>
+          <p className="muted small">12-step checklist (English/Tamil titles and points), tools list and TANGEDCO net-metering documents used for new projects (JSON).</p>
+          <ProjectJson value={s.project} disabled={!isAdmin} onSave={(v: any) => save("project", v)} />
+        </div>
+      )}
+
       {tab === "features" && (
         <div className="card">
           <h2>Features</h2>
@@ -196,5 +204,17 @@ export default function Settings() {
         </div>
       )}
     </div>
+  );
+}
+
+function ProjectJson({ value, disabled, onSave }: { value: any; disabled: boolean; onSave: (v: any) => void }) {
+  const [txt, setTxt] = useState(JSON.stringify(value || {}, null, 2));
+  const [bad, setBad] = useState(false);
+  return (
+    <>
+      <textarea style={{ minHeight: 380, fontFamily: "monospace", fontSize: 13 }} value={txt} disabled={disabled} onChange={(e) => setTxt(e.target.value)} />
+      {bad && <div className="err">Not valid JSON</div>}
+      {!disabled && <button style={{ marginTop: 10 }} onClick={() => { try { onSave(JSON.parse(txt)); setBad(false); } catch { setBad(true); } }}>Save project defaults</button>}
+    </>
   );
 }

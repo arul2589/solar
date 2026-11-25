@@ -7,6 +7,7 @@ os.environ.setdefault("DATABASE_URL", f"sqlite:///{_tmp}/test.sqlite3")
 os.environ["STORAGE_DIR"] = os.path.join(_tmp, "storage")
 os.environ["ENVIRONMENT"] = "test"
 os.environ["EMAIL_PROVIDER"] = "log"
+os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["SECRET_KEY"] = "test-secret-key-for-unit-tests-only-0123456789"
 os.environ.setdefault("PUBLIC_BASE_URL", "http://testserver")
 

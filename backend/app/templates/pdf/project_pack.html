@@ -1,0 +1,64 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Project pack {{ p.reference }}</title>
+<style>
+  @page { size: A4; margin: 12mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #777; } }
+  @page landscape { size: A4 landscape; margin: 10mm; }
+  body { font-family: "Noto Sans", "Noto Sans Tamil", "DejaVu Sans", sans-serif; font-size: 9.5pt; color: #1d2327; }
+  h1 { font-size: 15pt; margin: 0 0 4px; } h2 { font-size: 11.5pt; margin: 14px 0 6px; border-bottom: 1px solid #999; }
+  table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 4px; border-bottom: 1px dotted #bbb; vertical-align: top; }
+  th { background: #eef1f3; font-size: 8.5pt; }
+  .box { display: inline-block; width: 10px; height: 10px; border: 1px solid #333; margin-right: 6px; }
+  .done { background: #198754; }
+  .step { page-break-inside: avoid; margin-bottom: 6px; }
+  .diagram { page: landscape; page-break-before: always; } .diagram img { width: 100%; }
+  .muted { color: #666; } .ok { color: #067647; } .bad { color: #b42318; font-weight: bold; }
+</style></head>
+<body>
+  <h1>Project pack - {{ p.reference }}</h1>
+  <div>{{ company.name }} · Quotation #{{ p.pack.quotation_number }}</div>
+  <div><b>{{ p.customer_name }}</b> · {{ p.customer_phone }} · {{ p.address }} {{ p.district or "" }}</div>
+  <div><b>System:</b> {{ p.system_summary }}</div>
+
+  <h2>Bill of materials</h2>
+  <table><thead><tr><th>#</th><th>Item</th><th>Qty</th></tr></thead><tbody>
+  {% for l in p.pack.bom %}<tr><td>{{ loop.index }}</td><td><b>{{ l.description }}</b>{% if l.details %}<div class="muted">{{ l.details }}</div>{% endif %}</td><td>{{ '%g' % l.qty|float }} {{ l.unit }}</td></tr>{% endfor %}
+  </tbody></table>
+
+  <h2>String plan</h2>
+  {% for s in p.pack.strings %}<div>String {{ loop.index }}: {{ s.modules }} modules in series, MPPT {{ s.mppt }}</div>{% endfor %}
+  {% if p.pack.expected.string_voc_cold_max %}<div class="muted">Design max string Voc (cold): {{ p.pack.expected.string_voc_cold_max }} V</div>{% endif %}
+
+  <h2>Cable schedule</h2>
+  <table><thead><tr><th>From</th><th>To</th><th>Size</th><th>Length</th><th>Type</th></tr></thead><tbody>
+  {% for c in p.pack.cable_schedule %}<tr><td>{{ c['from'] }}</td><td>{{ c.to }}</td><td>{{ c.size_mm2 }} sq mm {{ c.cores }}</td><td>{{ c.length_m if c.length_m is not none else 'as req.' }}</td><td>{{ c.type }}</td></tr>{% endfor %}
+  </tbody></table>
+  <h2>Protection devices</h2>
+  <table><tbody>{% for d in p.pack.protection %}<tr><td>{{ d.location }}</td><td>{{ d.device }}</td><td>{{ d.rating }}</td><td>qty {{ d.qty }}</td></tr>{% endfor %}</tbody></table>
+
+  <h2>Tools</h2>
+  <div>{{ p.pack.tools|join(" · ") }}</div>
+
+  <h2>12-step installation checklist</h2>
+  {% for s in p.checklist %}
+  <div class="step"><span class="box {% if s.done %}done{% endif %}"></span><b>{{ s.step_no }}. {{ s.title }}</b>{% if s.title_ta %} / {{ s.title_ta }}{% endif %}
+    {% if s.done_at %}<span class="muted"> - done {{ s.done_at[:10] }}</span>{% endif %}
+    <div class="muted" style="margin-left:18px">{% for pt in s.points %}{% if pt.done %}☑{% else %}☐{% endif %} {{ pt.text }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    {% if s.notes %}<div style="margin-left:18px">Notes: {{ s.notes }}</div>{% endif %}
+  </div>
+  {% endfor %}
+
+  <h2>Test readings</h2>
+  {% if p.readings %}
+  <table><thead><tr><th>Test</th><th>Label</th><th>Value</th><th>Expected</th><th>Result</th></tr></thead><tbody>
+  {% for r in p.readings %}<tr><td>{{ r.kind }}</td><td>{{ r.label }}</td><td>{{ r.value }} {{ r.unit }}</td><td>{{ r.expected or '-' }}</td>
+    <td>{% if r.ok is none %}-{% elif r.ok %}<span class="ok">OK</span>{% else %}<span class="bad">CHECK</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<div class="muted">Record Voc per string, Isc, insulation and earth resistance (each pit &lt; 5 ohm).</div>{% endif %}
+
+  <h2>Net-metering documents (TANGEDCO)</h2>
+  {% for d in p.pack.net_metering_docs %}<div><span class="box"></span>{{ d }}</div>{% endfor %}
+
+  {% for k, title in [("sld", "Single-line diagram"), ("roof", "Roof layout"), ("schedule", "Cable and protection schedule")] %}
+  {% if diagrams[k] %}<div class="diagram"><h2>{{ title }}</h2><img src="{{ diagrams[k] }}"></div>{% endif %}
+  {% endfor %}
+</body></html>

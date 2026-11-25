@@ -142,6 +142,7 @@ DEFAULTS: dict = {
                   "warranty_text": DEFAULT_WARRANTY, "disclaimer_en": DISCLAIMER_EN, "disclaimer_ta": DISCLAIMER_TA,
                   "closing_text": "We hope you find our offer to be in line with your requirement."},
     "templates": EMAIL_TEMPLATES,
+    "project": {},   # filled from services.projects.PROJECT_DEFAULTS at load time
     "features": {"require_phone_otp": False, "bill_reading_enabled": True, "languages": ["en", "ta"]},
 }
 
@@ -183,6 +184,9 @@ def load_all(db: Session) -> dict:
             merged[key] = val if val is not None else copy.deepcopy(default)
         else:
             merged[key] = _deep_merge(default, val or {})
+    if not merged["project"]:
+        from .projects import PROJECT_DEFAULTS
+        merged["project"] = copy.deepcopy(PROJECT_DEFAULTS)
     merged["confirmed_placeholders"] = stored.get("confirmed_placeholders", {}).get("keys", [])
     return merged
 

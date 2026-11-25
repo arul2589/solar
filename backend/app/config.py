@@ -29,7 +29,7 @@ class Config(BaseSettings):
 
     # vision model for bill-photo reading (Phase 3)
     anthropic_api_key: str = ""
-    bill_reader_model: str = "claude-sonnet-5-5"
+    bill_reader_model: str = "claude-opus-5-5"
 
     access_token_minutes: int = 60 * 12
 

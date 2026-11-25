@@ -82,6 +82,9 @@ class CalcSettings:
     design_max_cell_temp_c: float = 70.0
     dc_ac_ratio_min: float = 1.0
     dc_ac_ratio_max: float = 1.3
+    max_inverters: int = 10                     # identical units allowed for large / industrial plants
+    ceig_inspection_kw: float = 10.0            # TANGEDCO memo: >= 10 kW inspected by Electrical Inspectorate
+    ht_connection_kw: float = 112.0             # TANGEDCO memo: above 112 kW connect at HT/EHT
     single_phase_max_kw: float = 5.0            # above this on 3-phase supply prefer 3-ph inverter
     current_safety_factor: float = 1.25
     dc_vdrop_max_pct: float = 1.5

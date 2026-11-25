@@ -63,7 +63,7 @@ class ElectricalDesign:
 
 def design_electrical(panel: PanelSpec, inv: InverterSpec, sd: StringDesign, s: CalcSettings, *,
                       dc_run_one_way_m: Optional[float] = None, ac_run_m: Optional[float] = None,
-                      lightning_arrester: Optional[bool] = None) -> ElectricalDesign:
+                      lightning_arrester: Optional[bool] = None, inverter_count: int = 1) -> ElectricalDesign:
     warnings: list[Warning_] = []
     one_way = dc_run_one_way_m if dc_run_one_way_m is not None else s.dc_run_one_way_m
     ac_len = ac_run_m if ac_run_m is not None else s.ac_run_m
@@ -73,7 +73,6 @@ def design_electrical(panel: PanelSpec, inv: InverterSpec, sd: StringDesign, s: 
 
     # ---- DC: per string -------------------------------------------------------
     string_design_current = panel.isc * sf
-    max_len = max((st["modules"] for st in sd.strings), default=1)
     string_vmp = max(1.0, sd.vmp_hot_per_module * min((st["modules"] for st in sd.strings), default=1))
     dc_size, dc_pct = pick_cable(s.dc_cable_sizes_mm2, s.dc_cable_ampacity, string_design_current,
                                  one_way, panel.imp, string_vmp, s.dc_vdrop_max_pct, rho)
@@ -88,18 +87,21 @@ def design_electrical(panel: PanelSpec, inv: InverterSpec, sd: StringDesign, s: 
     for i, st in enumerate(sd.strings, start=1):
         length = 2 * one_way
         total_dc += length
-        schedule.append({"from": f"String {i} (MPPT {st['mppt']}, {st['modules']} modules)", "to": "DCDB",
+        where = f"inverter {st.get('inverter', 1)} MPPT {st['mppt']}" if inverter_count > 1 else f"MPPT {st['mppt']}"
+        schedule.append({"from": f"String {i} ({where}, {st['modules']} modules)", "to": "DCDB",
                          "size_mm2": dc_size, "cores": "2 x 1C", "length_m": round(length, 1),
                          "type": "Solar DC cable (UV resistant, MC4 terminated)",
                          "current_a": round(panel.imp, 2), "vdrop_pct": round(dc_pct, 2)})
     mppt_current = {}
     for st in sd.strings:
-        mppt_current[st["mppt"]] = mppt_current.get(st["mppt"], 0) + panel.imp
+        key = (st.get("inverter", 1), st["mppt"])
+        mppt_current[key] = mppt_current.get(key, 0) + panel.imp
     if s.dcdb_to_inverter_m > 0:
-        for m, cur in sorted(mppt_current.items()):
+        for (u, m), cur in sorted(mppt_current.items()):
             length = 2 * s.dcdb_to_inverter_m
             total_dc += length
-            schedule.append({"from": "DCDB", "to": f"Inverter MPPT {m}", "size_mm2": dc_size, "cores": "2 x 1C",
+            to = f"Inverter {u} MPPT {m}" if inverter_count > 1 else f"Inverter MPPT {m}"
+            schedule.append({"from": "DCDB", "to": to, "size_mm2": dc_size, "cores": "2 x 1C",
                              "length_m": round(length, 1), "type": "Solar DC cable",
                              "current_a": round(cur, 2), "vdrop_pct": None})
 
@@ -107,20 +109,29 @@ def design_electrical(panel: PanelSpec, inv: InverterSpec, sd: StringDesign, s: 
     three = inv.phase == 3
     v_ac = s.ac_voltage_3ph if three else s.ac_voltage_1ph
     ac_design = inv.ac_max_current * sf
-    total_ac_len = s.inverter_to_acdb_m + ac_len
-    ac_size, ac_pct = pick_cable(s.ac_cable_sizes_mm2, s.ac_cable_ampacity, ac_design, total_ac_len,
-                                 inv.ac_max_current, v_ac, s.ac_vdrop_max_pct, rho, three)
+    n_inv = max(1, inverter_count)
+    total_ac_len = n_inv * s.inverter_to_acdb_m + ac_len
+    out_current = inv.ac_max_current * n_inv
+    ac_size, ac_pct = pick_cable(s.ac_cable_sizes_mm2, s.ac_cable_ampacity, out_current * sf,
+                                 s.inverter_to_acdb_m + ac_len, out_current, v_ac, s.ac_vdrop_max_pct, rho, three)
     if ac_size is None:
         ac_size = max(s.ac_cable_sizes_mm2)
         warnings.append(Warning_("AC_VDROP_HIGH",
             f"AC voltage drop {ac_pct:.2f}% exceeds {s.ac_vdrop_max_pct:g}%.", "warning"))
+    unit_size = ac_size
+    if n_inv > 1:
+        unit_size, _ = pick_cable(s.ac_cable_sizes_mm2, s.ac_cable_ampacity, ac_design, s.inverter_to_acdb_m,
+                                  inv.ac_max_current, v_ac, 100.0, rho, three)
+        unit_size = unit_size or ac_size
     cores = "4C" if three else "2C"
-    schedule.append({"from": "Inverter AC output", "to": "ACDB", "size_mm2": ac_size, "cores": cores,
-                     "length_m": round(s.inverter_to_acdb_m, 1), "type": "Cu PVC insulated AC cable",
-                     "current_a": round(inv.ac_max_current, 2), "vdrop_pct": None})
+    for u in range(1, n_inv + 1):
+        schedule.append({"from": f"Inverter {u} AC output" if n_inv > 1 else "Inverter AC output", "to": "ACDB",
+                         "size_mm2": unit_size, "cores": cores,
+                         "length_m": round(s.inverter_to_acdb_m, 1), "type": "Cu PVC insulated AC cable",
+                         "current_a": round(inv.ac_max_current, 2), "vdrop_pct": None})
     schedule.append({"from": "ACDB", "to": "Main LT panel / net meter", "size_mm2": ac_size, "cores": cores,
                      "length_m": round(ac_len, 1), "type": "Cu PVC insulated AC cable",
-                     "current_a": round(inv.ac_max_current, 2), "vdrop_pct": round(ac_pct, 2)})
+                     "current_a": round(out_current, 2), "vdrop_pct": round(ac_pct, 2)})
 
     # ---- earthing ---------------------------------------------------------------
     pits = s.earthing_pits_min + (1 if la else 0)
@@ -148,8 +159,13 @@ def design_electrical(panel: PanelSpec, inv: InverterSpec, sd: StringDesign, s: 
                        "rating": f"{iso or '?'} A, {dc_class} V DC", "qty": len(mppt_current)})
     protection.append({"location": "DCDB", "device": "DC SPD Type 2",
                        "rating": f"Ucpv >= {voc_string * 1.2:.0f} V ({dc_class} V class)", "qty": len(mppt_current)})
-    mcb = next_rating(ac_design, s.standard_breaker_ratings_a)
-    protection.append({"location": "ACDB", "device": f"AC MCB {'4P' if three else '2P'}",
+    mcb = next_rating(out_current * sf, s.standard_breaker_ratings_a)
+    if n_inv > 1:
+        unit_mcb = next_rating(ac_design, s.standard_breaker_ratings_a)
+        protection.append({"location": "ACDB", "device": f"AC MCB {'4P' if three else '2P'} per inverter",
+                           "rating": f"{unit_mcb or '?'} A, C-curve", "qty": n_inv})
+    protection.append({"location": "ACDB", "device": f"AC {'MCCB' if (mcb or 999) > 63 else 'MCB'} "
+                                                     f"{'4P' if three else '2P'}{' outgoing' if n_inv > 1 else ''}",
                        "rating": f"{mcb or '?'} A, C-curve", "qty": 1})
     protection.append({"location": "ACDB", "device": "AC SPD Type 2",
                        "rating": f"Uc {'385' if three else '275'} V", "qty": 1})

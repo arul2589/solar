@@ -123,6 +123,7 @@ class InverterChoice:
     strings: Optional[StringDesign]
     candidates_considered: int
     warnings: list = field(default_factory=list)
+    count: int = 1
 
     def to_dict(self):
         inv = self.inverter
@@ -135,7 +136,32 @@ class InverterChoice:
             "dc_ac_ratio": None if self.dc_ac_ratio is None else round(self.dc_ac_ratio, 3),
             "strings": self.strings.to_dict() if self.strings else None,
             "candidates_considered": self.candidates_considered,
+            "count": self.count,
         }
+
+
+def design_units(panel: PanelSpec, n_modules: int, inv: InverterSpec, count: int, s: CalcSettings) -> StringDesign:
+    """String design for `count` identical inverters sharing n_modules (split as evenly as possible)."""
+    if count == 1:
+        return design_strings(panel, n_modules, inv, s)
+    parts = _split(n_modules, count)
+    designs = {n: design_strings(panel, n, inv, s) for n in set(parts)}
+    first = designs[parts[0]]
+    if not all(d.feasible for d in designs.values()):
+        bad = next(d for d in designs.values() if not d.feasible)
+        return bad
+    strings = []
+    for u, n in enumerate(parts, start=1):
+        strings += [dict(st, inverter=u) for st in designs[n].strings]
+    lens = [st["modules"] for st in strings]
+    return StringDesign(
+        feasible=True, strings=strings, modules_per_string_min=first.modules_per_string_min,
+        modules_per_string_max=first.modules_per_string_max, voc_cold_per_module=first.voc_cold_per_module,
+        vmp_hot_per_module=first.vmp_hot_per_module, vmp_cold_per_module=first.vmp_cold_per_module,
+        string_voc_cold_max=max(lens) * first.voc_cold_per_module, string_vmp_hot_min=min(lens) * first.vmp_hot_per_module,
+        string_vmp_cold_max=max(lens) * first.vmp_cold_per_module,
+        max_mppt_current=max(d.max_mppt_current for d in designs.values()),
+        warnings=[w for d in designs.values() for w in d.warnings])
 
 
 def allowed_phases(supply_phase: int, dc_kwp: float, s: CalcSettings) -> list[int]:
@@ -164,33 +190,42 @@ def select_inverter(panel: PanelSpec, n_modules: int, catalogue: Sequence[Invert
             warnings += sd.warnings
             return InverterChoice(chosen, ratio, sd, 1, warnings)
 
+
     phases = allowed_phases(supply_phase, dc_kw, s)
     ranked = []
     for inv in pool:
         if inv.phase not in phases:
             continue
-        ratio = dc_kw / inv.ac_kw
-        sd = design_strings(panel, n_modules, inv, s)
-        in_range = s.dc_ac_ratio_min <= ratio <= s.dc_ac_ratio_max
-        # lower score is better: feasible strings, ratio in range, preferred phase, then
-        # the smallest inverter, then price
-        score = (
-            0 if sd.feasible else 1,
-            0 if in_range else 1,
-            phases.index(inv.phase),
-            0 if in_range else abs(ratio - (s.dc_ac_ratio_min + s.dc_ac_ratio_max) / 2),
-            inv.ac_kw,
-            float(inv.price or 0),
-        )
-        ranked.append((score, inv, ratio, sd))
+        for count in range(1, max(1, s.max_inverters) + 1):
+            if count > 1 and n_modules < count:
+                break
+            ratio = dc_kw / (inv.ac_kw * count)
+            if count > 1 and ratio < s.dc_ac_ratio_min:
+                break      # more units only make it more oversized
+            sd = design_units(panel, n_modules, inv, count, s)
+            in_range = s.dc_ac_ratio_min <= ratio <= s.dc_ac_ratio_max
+            # lower score is better: feasible strings, ratio in range, preferred phase, fewer units,
+            # then the smallest total rating, then price
+            score = (
+                0 if sd.feasible else 1,
+                0 if in_range else 1,
+                phases.index(inv.phase),
+                0 if in_range else abs(ratio - (s.dc_ac_ratio_min + s.dc_ac_ratio_max) / 2),
+                count,
+                inv.ac_kw * count,
+                float(inv.price or 0) * count,
+            )
+            ranked.append((score, inv, ratio, sd, count))
     if not ranked:
         warnings.append(Warning_("PHASE_MISMATCH",
             f"No inverter in the catalogue matches a {supply_phase}-phase supply.", "error"))
         return InverterChoice(None, None, None, 0, warnings)
     ranked.sort(key=lambda r: r[0])
-    _, inv, ratio, sd = ranked[0]
+    _, inv, ratio, sd, count = ranked[0]
     warnings += _ratio_warnings(ratio, inv, s) + _phase_warnings(inv, supply_phase, dc_kw, s) + sd.warnings
-    return InverterChoice(inv, ratio, sd, len(ranked), warnings)
+    if count > 1:
+        warnings.append(Warning_("MULTIPLE_INVERTERS", f"{count} × {inv.model} share the array.", "info"))
+    return InverterChoice(inv, ratio, sd, len(ranked), warnings, count=count)
 
 
 def _ratio_warnings(ratio: float, inv: InverterSpec, s: CalcSettings) -> list[Warning_]:

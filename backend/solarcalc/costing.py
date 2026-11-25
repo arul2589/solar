@@ -109,7 +109,7 @@ def _qty(rule: PriceRule, ctx: dict) -> Decimal:
         "per_kwp": Decimal(str(ctx["dc_kwp"])),
         "per_panel": Decimal(ctx["panel_count"]),
         "panel": Decimal(ctx["panel_count"]),
-        "inverter": Decimal("1"),
+        "inverter": Decimal(ctx.get("inverter_count", 1)),
         "dc_cable_m": Decimal(str(math.ceil(ctx["dc_cable_m"]))),
         "ac_cable_m": Decimal(str(math.ceil(ctx["ac_cable_m"]))),
         "earth_pits": Decimal(ctx["earthing_pits"]),

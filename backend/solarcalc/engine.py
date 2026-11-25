@@ -96,6 +96,14 @@ def analyse(inp: SiteInputs, s: CalcSettings, *, panels: Sequence[PanelSpec], in
         warns.append(Warning_("ROOF_UNKNOWN", "Roof area not given; confirm at site visit.", "info"))
     result["roof"] = roof
 
+    if sizing.dc_kwp >= s.ceig_inspection_kw:
+        warns.append(Warning_("CEIG_INSPECTION",
+            f"{sizing.dc_kwp} kWp: safety inspection by the Electrical Inspectorate (CEIG) is required "
+            f"(>= {s.ceig_inspection_kw:g} kW).", "info"))
+    if sizing.dc_kwp > s.ht_connection_kw:
+        warns.append(Warning_("HT_CONNECTION",
+            f"Above {s.ht_connection_kw:g} kW the plant connects at HT/EHT with ABT meters; LT net metering does not apply.",
+            "warning"))
     if inp.shade == "heavy":
         warns.append(Warning_("HEAVY_SHADE", "Heavy shade reported: generation may be much lower; site survey needed.", "warning"))
     elif inp.shade == "some":
@@ -117,7 +125,8 @@ def analyse(inp: SiteInputs, s: CalcSettings, *, panels: Sequence[PanelSpec], in
     electrical = None
     if choice.inverter and choice.strings and choice.strings.feasible:
         electrical = design_electrical(panel, choice.inverter, choice.strings, s,
-                                       dc_run_one_way_m=inp.dc_run_one_way_m, ac_run_m=inp.ac_run_m)
+                                       dc_run_one_way_m=inp.dc_run_one_way_m, ac_run_m=inp.ac_run_m,
+                                       inverter_count=choice.count)
         warns += electrical.warnings
         result["electrical"] = electrical.to_dict()
     else:
@@ -191,7 +200,8 @@ def bom_context(sizing, panel: PanelSpec, choice, electrical, inp: SiteInputs, k
         "la_cable_m": electrical.la_cable_m if electrical else 0,
         "lightning_arrester": electrical.lightning_arrester if electrical else False,
         "strings": choice.strings.string_count if choice.strings else 0,
-        "mppts": len({st["mppt"] for st in choice.strings.strings}) if choice.strings else 0,
+        "mppts": len({(st.get("inverter", 1), st["mppt"]) for st in choice.strings.strings}) if choice.strings else 0,
+        "inverter_count": choice.count,
         "phase": inp.phase, "system_kind": kind,
         "panel": {"model": panel.model, "wp": f"{panel.wp:g}", "price": panel.price},
         "inverter": {"model": inv.model, "ac_kw": f"{inv.ac_kw:g}", "phase": inv.phase,

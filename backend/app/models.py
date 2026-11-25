@@ -305,6 +305,7 @@ class ChecklistItem(TenantMixin, Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"), index=True)
     step_no: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(200))
+    title_ta: Mapped[Optional[str]] = mapped_column(String(200))
     points: Mapped[list] = mapped_column(JSON, default=list)
     done: Mapped[bool] = mapped_column(Boolean, default=False)
     done_by: Mapped[Optional[int]] = mapped_column(Integer)

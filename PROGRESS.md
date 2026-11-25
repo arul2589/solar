@@ -5,7 +5,7 @@
 |---|---|
 | 1 — Foundation | **Done**: tests passing, smoke test passing |
 | 2 — Quotation and diagrams | **Done**: tests passing, smoke test passing |
-| 3 — Project pack and extras | Not started |
+| 3 — Project pack and extras | **Done**: tests passing (84), smoke test passing |
 | 4 — Later (subsidy, WhatsApp, payments, reports, onboarding) | Out of scope |
 
 ## Phase 1: what is done
@@ -26,6 +26,20 @@
 - Diagrams module `backend/diagrams/svg.py`: single-line diagram (incl. hybrid battery), roof layout with fit warning, cable and protection schedule; SVG snapshot tests.
 - Acceptance tests: 3 kW (₹2,08,120.48) and 5 kW (₹3,23,476.48) home examples match line-by-line hand calculations in `tests/test_phase2.py`, and the totals appear in the PDF text.
 
+## Phase 3: what is done
+- Project created automatically when a customer accepts: bill of materials (quantities only, no prices), tools list, 12-step checklist (English + Tamil titles), string plan, cable/protection schedule, expected test values, TANGEDCO net-metering document checklist. Defaults editable in Settings → Project.
+- Technician mobile view (Projects): sees only assigned projects; tick steps and sub-points, notes, record Voc/Isc/earth resistance/insulation readings with automatic OK/CHECK against the design, camera photo upload, drawings, materials. Project status drives the request stage (installation → net metering → completed) and customer status emails.
+- Project pack PDF with diagrams.
+- Bill-photo reading: staff press "Read bill (AI)" on an EB bill upload; Claude (`claude-opus-5-5`, JSON-schema structured output, image or PDF input, server-side refusal fallback) extracts consumer no., tariff, phase, sanction load, units, period and amount. Values are shown as suggestions; staff click Apply and then Save, so nothing changes without confirmation. Needs `ANTHROPIC_API_KEY` in `.env`; without it the button returns a clear "not configured" message.
+- Industrial / 3-phase: several identical inverters for large plants (e.g. 30 kW → 3 × 10 kW three-phase), per-inverter AC runs and MCBs, outgoing MCCB, CEIG inspection notice ≥ 10 kW, HT/EHT notice > 112 kW, non-domestic network-charge percentage and tariff.
+- Tamil: all customer emails (acknowledgement, quotation ready, status updates, sign-in link) and the public UI in Tamil; Tamil checklist titles for technicians.
+
+## Not done / known gaps
+- Visual browser check of the UI was not possible in this session (Chrome extension not connected); all flows were exercised through the API smoke test and backend tests, and the frontend type-checks and builds.
+- Tamil text was written without native-speaker review.
+- No real SMS provider (OTP codes go to the server log); email uses the `log` provider until a Resend/Brevo key is set.
+- Phase 4 items (subsidy workflow, WhatsApp, payments/invoices, reports, self-service onboarding) are not built; `subsidy_case` and `quotation.subsidy_amount` are placeholders.
+
 ## How to run
 ```bash
 docker compose -p solar up -d --build        # http://localhost:8088
@@ -44,9 +58,9 @@ docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python -m 
 docker compose -p solar exec db psql -U solar -c "CREATE DATABASE solar_test"   # once
 docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" -e DATABASE_URL=postgresql+psycopg://solar:solar-dev-password@db:5432/solar_test api python -m pytest -q
 # end-to-end smoke test through the web proxy
-docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python scripts/smoke.py --base http://web --phase 2
+docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python scripts/smoke.py --base http://web --phase 3
 ```
 (On Windows Git Bash prefix with `MSYS_NO_PATHCONV=1` and use `$(pwd -W)`.)
 
 ## Next
-Phase 3: project pack on acceptance (BOM, tools, 12-step checklist, diagrams, net-metering documents), technician mobile view with readings and photos, bill-photo reading, industrial/3-phase handling, Tamil templates.
+Owner to review Settings → Placeholders and confirm each value; then deploy (set `.env` from `.env.example`, `SITE_ADDRESS=solar.<domain>`, point DNS, `docker compose -p solar up -d --build`). Phase 4 after that.

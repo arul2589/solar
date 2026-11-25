@@ -14,6 +14,6 @@ jinja2==3.*
 httpx==0.28.*
 pillow==11.*
 weasyprint==63.*
-anthropic>=0.40
+anthropic
 pytest==8.*
 pypdf==5.*

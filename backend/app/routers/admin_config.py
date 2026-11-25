@@ -23,7 +23,7 @@ from ..worker import dispatch_soon
 
 router = APIRouter(prefix="/api/admin", tags=["admin-config"])
 
-SECTIONS = ("company", "email", "calc", "tariff_slabs", "quotation", "templates", "features")
+SECTIONS = ("company", "email", "calc", "tariff_slabs", "quotation", "templates", "features", "project")
 
 
 # ------------------------------------------------------------------ settings
