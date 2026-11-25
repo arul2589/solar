@@ -1,0 +1,1 @@
+Read CLAUDE.md and SPEC.md. Then build the whole platform autonomously, Phase 1 -> Phase 2 -> Phase 3, following the Autonomous mode rules in CLAUDE.md. The reference files are in the reference/ folder. Start now.

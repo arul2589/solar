@@ -1,0 +1,51 @@
+# Decisions and assumptions
+
+Built autonomously per CLAUDE.md "Autonomous mode". Every placeholder below is also listed
+in **Admin → Settings → Placeholders** with a "placeholder - owner must confirm" tag, and
+stays flagged until the owner presses *Mark confirmed*.
+
+## Placeholders the owner must confirm (SPEC VERIFY items)
+
+| Key (Settings → Placeholders) | Placeholder used | Why / source |
+|---|---|---|
+| `calc.realistic_yield` | 3.8–4.4 kWh/kW/day (sizing uses the mid value 4.1) | SPEC 6.1 VERIFY. Institute poster says 4–5 units/day per kW; CUF 21% gives 5.04 (used only for network charges). |
+| `network_rate.latest` | Dated table 1.27 / 1.48 (10.09.2022) / 1.53 (01.07.2023) / 1.59 (01.07.2024) | SPEC 6.6 VERIFY. Sample bills used 1.56 and 1.6, not in the printed table. Rates are editable rows with effective dates. |
+| `calc.network_pct_other` | 100% for non-domestic or > 10 kW | Only the domestic ≤ 10 kW rule (20%) is in the sheets. |
+| `tariff_slabs.domestic` | Bi-monthly telescopic slabs: 0–100 free, 101–200 ₹2.35, 201–400 ₹4.70, 401–500 ₹6.30, 501–600 ₹8.40, 601–800 ₹9.45, 801–1000 ₹10.50, >1000 ₹11.55 | SPEC 6.7 VERIFY. Used for savings and to turn a bill amount into units. |
+| `calc.commercial_flat_rate` | ₹9.00/unit | No commercial/industrial slabs given. |
+| `price_items.gst` | 5% panels and inverter, 18% BOS, 0% services/charges | Copied from quotation #276 (SPEC 12 Q3). |
+| `price_items.prices` | All prices from quotation #276 (June 2026); 3-phase ACDB ₹4,500, battery ₹18,000/kWh and hybrid/10 kW inverter prices are guesses | SPEC 12 Q6. |
+| `catalogue.panel_specs` | 615 Wp TOPCon: Voc 52.6, Vmp 44.0, Isc 14.75, Imp 13.98, βVoc −0.25 %/°C, γ −0.29 %/°C, 2382 × 1134 mm | No datasheet in `reference/` for the quoted Adani 615 W panel. The Waaree 710 W row is from its datasheet. |
+| `catalogue.inverter_specs` | UTL 3.3 kW: 550 V max, MPPT 80–500 V, 16 A. 10 kW 3-ph and 5 kW hybrid are generic | Only the UTL GT-5K nameplate photo was available (550 V, MPPT 250–500 V, 20 A, 25 A AC) and is used as-is. |
+| `company.branding` | Neutral "Demo Rooftop Solar", no GSTIN, no bank details | See "Branding" below (SPEC 12 Q5). |
+| `calc.single_phase_max_kw` | 5 kW | Above this on a 3-phase supply the engine prefers a 3-phase inverter. Quotation #276 put a 1-ph 3.3 kW inverter on a 3-ph supply, so small 1-ph inverters stay allowed. |
+| `calc.cost_range_band_pct` | ±10% | Width of the rough cost range shown on the analysis panel. |
+| `email.from_address` | `onboarding@resend.dev` (provider sandbox), Reply-To `arulmurugan08@outlook.com` | SPEC 8: switch to the company domain after SPF/DKIM. |
+| `features.require_phone_otp` | Off | No SMS provider credentials yet. The OTP flow is built and tested (codes go to the server log; in development they are shown on screen). |
+
+Other design defaults (editable in Settings → Calculation, not flagged): tilt 12°, design sun elevation 30° for row spacing, 0.3 m edge clearance and min row gap (institute 1 kW guideline), cell temperature 10 °C / 70 °C for string limits, DC/AC ratio 1.0–1.3, 1.25 current safety factor, DC voltage drop ≤ 1.5%, AC ≤ 2%, DC run 15 m one way, AC run 15 m, earthing = 2 pits minimum + 1 dedicated LA pit (matches the 3 pits in #276), 2-month billing cycle, network units floored (the Nov-2025 sheet shows 1572.48 → 1572).
+
+## Branding
+`reference/` contains Sri Vinayaka Solar's quotation, including GSTIN and bank account. SPEC says the owner's company is "Sri Vinayaka-*style*", so I did not copy that company's name, GSTIN or bank details into the product. The seed installer is a neutral **Demo Rooftop Solar** (slug `demo`). The owner enters real details in Settings → Company. Prices, items, HSN codes and terms wording from #276 *are* used as the starting price list.
+
+## Privacy rules
+- **Bank account numbers are never stored.** The quotation footer has bank account name, bank, branch, IFSC and UPI ID only. The settings API rejects `bank_account_number` / `account_number` / `aadhaar` / `pan` keys.
+- No government IDs are collected. The subsidy flow is a placeholder table (`subsidy_case`) and a `subsidy_amount` nullable column.
+- Phone numbers are masked in logs and list views; email addresses are masked in the email log view.
+- Admins can delete a customer's personal data (anonymise) from the API (`POST /api/admin/requests/{id}/anonymise`).
+- Uploaded images are re-encoded to JPEG (drops EXIF/GPS and hidden payloads); only JPEG/PNG/WEBP (and PDF for bills) up to 8 MB; files live in a private volume and are served only through short-lived HMAC-signed URLs.
+
+## Architecture choices
+- **Stack as SPEC §3**: FastAPI + SQLAlchemy 2 + Alembic + Pydantic, PostgreSQL 16, React + Vite (TypeScript), Docker Compose, Caddy (static files + reverse proxy + automatic HTTPS), WeasyPrint for HTML → PDF, diagrams as SVG generated in Python.
+- **Tenant isolation**: every tenant table inherits `TenantMixin` (`installer_id` NOT NULL, indexed). A SQLAlchemy `do_orm_execute` hook adds `WHERE installer_id = :tenant` to every ORM SELECT/UPDATE/DELETE via `with_loader_criteria`; a `before_flush` hook stamps/validates `installer_id` on writes. A session without a tenant that touches a tenant table raises `TenantError`. Only platform-owner code uses an explicit bypass. Postgres row-level security was not added on top (would need a per-request `SET` and a non-owner DB role); the ORM filter plus tests is the "mandatory query filter" option from SPEC §2.
+- **Tenant resolution**: public URLs are `/s/<installer-slug>/...`, and the API takes the slug in the path. Staff tokens carry the installer id. This works unchanged when `<installer>.<domain>` subdomains are added later (map host → slug in Caddy or the frontend).
+- **Queue**: a database outbox (`email_log`) instead of Redis/RQ. The API sends right after the request (FastAPI background task) and the `worker` container retries failed sends every 15 s with exponential back-off (max 5 attempts, then `dead`). Fewer moving parts on a single VPS; swappable later.
+- **Email providers**: `log` (default; nothing leaves the server, message stored and marked sent with id `log-N`), `resend`, `brevo` — choose with `EMAIL_PROVIDER` and the API key in `.env`.
+- **Analysis runs are immutable**: each stores inputs, a full settings + catalogue snapshot and outputs. Updating or deleting one raises an error. Staff overrides create a new run.
+- **Customer status links** use a stable HMAC of a per-request random salt (no token stored in clear, and links in earlier emails keep working).
+- **Rate limiting** of the public form is in-process (one API process). If the API is scaled to several processes, move it to Redis or Caddy.
+- **Sizing basis**: SPEC 6.1 says kW needed = monthly units ÷ units per kW per month. The yield used is a setting (`sizing_yield_basis`: realistic mid (default), realistic low, or CUF).
+- **"Sold as" kW**: the nominal kW label is the DC kWp rounded down (5 × 615 W = 3.075 kWp → "3 kW", as in #276); per-kW price lines (structure, labour) use this nominal kW. Setting `nominal_kw_rounding`.
+- **Savings** use bill-before minus bill-after on the slab tariff per billing cycle, minus network charges incl. GST, so generation above consumption earns nothing (TANGEDCO caps export credit). Low/high yield give the range; payback = estimated cost ÷ annual saving.
+- **Local development** runs in Docker: this Windows machine's Application Control policy blocks native Python extension DLLs in a local virtualenv, so tests run in the API container.
+- **Tamil text** was written by me; a native speaker should review the UI strings (`frontend/src/i18n.tsx`) and email templates (Settings → Templates) before launch.

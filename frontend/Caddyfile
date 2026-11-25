@@ -1,0 +1,22 @@
+# SITE_ADDRESS=":80" for local HTTP; set it to "solar.example.com" in production and Caddy
+# obtains and renews HTTPS certificates automatically (HTTP is redirected to HTTPS).
+{$SITE_ADDRESS::80} {
+	encode gzip
+	request_body /api/* {
+		max_size 60MB
+	}
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+}
