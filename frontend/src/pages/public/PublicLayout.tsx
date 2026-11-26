@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import Icon from "../../components/Icon";
 import { content } from "../../content";
-import { api } from "../../api";
+import { api, ApiError, defaultSlug } from "../../api";
 import { useI18n } from "../../i18n";
 import { site } from "../../siteContent";
 
@@ -28,6 +28,7 @@ export default function PublicLayout() {
   const [solOpen, setSolOpen] = useState(false);
   const { lang, setLang, t } = useI18n();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const n = site[lang].nav;
   const f = site[lang].footer;
   const oldNav = content[lang].nav;
@@ -38,7 +39,12 @@ export default function PublicLayout() {
     api<InstallerInfo>(`/api/public/${slug}`).then((i) => {
       setInfo(i);
       document.title = i.name;
-    }).catch((e) => setErr(e.message));
+    }).catch((e) => {
+      // old or mistyped company address (e.g. a bookmarked /s/demo link): go to the main site
+      if (e instanceof ApiError && e.status === 404 && slug !== defaultSlug()) {
+        navigate(pathname.replace(`/s/${slug}`, `/s/${defaultSlug()}`), { replace: true });
+      } else setErr(e.message);
+    });
   }, [slug]);
 
   // close menus and go to the top on navigation

@@ -18,6 +18,12 @@
 	}
 	handle {
 		root * /srv
+		# hashed bundles never change, so cache them for a year; pages must always be re-checked,
+		# otherwise a browser keeps an old page that points to bundles removed by a new deploy
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@pages not path /assets/*
+		header @pages Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}
