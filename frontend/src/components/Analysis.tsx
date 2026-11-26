@@ -5,6 +5,11 @@ export function Warnings({ list }: { list: any[] }) {
   return <>{list.map((w, i) => <div key={i} className={`warn ${w.severity}`}><strong>{w.code.replace(/_/g, " ")}</strong>: {w.message}</div>)}</>;
 }
 
+// "a–b", or just "a" when both ends are the same
+function range(a: any, b: any, sep = "–") {
+  return String(a) === String(b) ? String(a) : `${a}${sep}${b}`;
+}
+
 function Stat({ v, l }: { v: any; l: string }) {
   return <div className="stat"><div className="v">{v}</div><div className="l">{l}</div></div>;
 }
@@ -24,12 +29,12 @@ export function AnalysisView({ o }: { o: any }) {
       <div className="grid3" style={{ marginBottom: 12 }}>
         <Stat v={`${sz.dc_kwp} kWp`} l={`Suggested system (sold as ${sz.nominal_kw} kW)`} />
         <Stat v={sz.panel_count} l={`Panels × ${sz.panel_wp} W (${o.panel?.model || ""})`} />
-        <Stat v={`${o.generation?.per_month_low}–${o.generation?.per_month_high}`} l="Units / month (realistic yield)" />
+        <Stat v={range(o.generation?.per_month_low, o.generation?.per_month_high)} l="Units / month (realistic yield)" />
         <Stat v={roof.fits === null || roof.fits === undefined ? "?" : roof.fits ? "Fits" : "Does not fit"} l={`Roof: need ~${roof.rule_of_thumb?.min_m2}–${roof.rule_of_thumb?.recommended_m2} m², have ${roof.available_m2 ?? "?"} m²`} />
         <Stat v={inv ? `${inv.ac_kw} kW` : "-"} l={inv ? `${inv.model} (${inv.phase}-ph), DC/AC ${o.inverter.dc_ac_ratio}` : "No inverter"} />
-        {o.cost && <Stat v={`${inr0(o.cost.range_low)} – ${inr0(o.cost.range_high)}`} l="Rough cost range (incl. GST)" />}
-        {sv.low && <Stat v={`${inr0(sv.low.annual_saving)} – ${inr0(sv.high.annual_saving)}`} l="Annual savings (range)" />}
-        {sv.low?.payback_years && <Stat v={`${sv.high.payback_years}–${sv.low.payback_years} yrs`} l="Payback (range)" />}
+        {o.cost && <Stat v={range(inr0(o.cost.range_low), inr0(o.cost.range_high), " – ")} l="Rough cost range (incl. GST)" />}
+        {sv.low && <Stat v={range(inr0(sv.low.annual_saving), inr0(sv.high.annual_saving), " – ")} l="Annual savings (range)" />}
+        {sv.low?.payback_years && <Stat v={`${range(sv.high.payback_years, sv.low.payback_years)} yrs`} l="Payback (range)" />}
       </div>
       <h3>Warnings</h3>
       <Warnings list={o.warnings} />

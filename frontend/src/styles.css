@@ -189,3 +189,28 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 }
 .pub-header .lang-switch.row { flex-wrap: nowrap; }
 .pub-header .lang-switch.row > * { flex: 0 0 auto; }
+
+/* ---- phone fixes from the headless UI check ---- */
+@media (max-width: 760px) {
+  /* admin navigation: one scrollable row instead of a quarter of the screen */
+  .sidebar { flex-wrap: nowrap; overflow-x: auto; align-items: center; padding: 8px; gap: 2px; -webkit-overflow-scrolling: touch; }
+  .sidebar > * { flex: 0 0 auto; white-space: nowrap; }
+  .sidebar .brand { padding: 6px 8px; }
+  .sidebar .who { padding: 6px 8px; font-size: 0.75rem; }
+  .sidebar .who br { display: none; }
+  .sidebar .who a { display: inline; padding: 0 0 0 6px; }
+  /* page action buttons wrap inside the screen */
+  .topbar > .row { flex: 1 1 100% !important; align-items: stretch; }
+  .topbar > .row > * { flex: 1 1 140px; }
+  /* pipeline filters two per line */
+  .filters .row > * { flex: 1 1 140px; }
+  /* customer quotation: each line becomes a small card */
+  table.quote-lines thead { display: none; }
+  table.quote-lines, table.quote-lines tbody, table.quote-lines tr, table.quote-lines td { display: block; width: 100%; }
+  table.quote-lines tr { display: grid; grid-template-columns: 28px 1fr 1fr; column-gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  table.quote-lines td { border: 0; padding: 2px 0; text-align: left; }
+  table.quote-lines td:first-child { grid-row: 1 / span 3; color: var(--muted); }
+  table.quote-lines td:nth-child(2) { grid-column: 2 / span 2; }
+  table.quote-lines td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 0.8rem; }
+  table.quote-lines td.total { font-weight: 700; text-align: right; }
+}

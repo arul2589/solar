@@ -3,7 +3,12 @@ import os
 import tempfile
 
 _tmp = tempfile.mkdtemp(prefix="solar-test-")
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{_tmp}/test.sqlite3")
+# Never inherit the app's DATABASE_URL: the session fixture drops all tables on Postgres.
+# To test against Postgres, point TEST_DATABASE_URL at a separate, disposable database.
+_test_url = os.environ.get("TEST_DATABASE_URL", f"sqlite:///{_tmp}/test.sqlite3")
+if _test_url == os.environ.get("DATABASE_URL"):
+    raise RuntimeError("TEST_DATABASE_URL must not be the application database")
+os.environ["DATABASE_URL"] = _test_url
 os.environ["STORAGE_DIR"] = os.path.join(_tmp, "storage")
 os.environ["ENVIRONMENT"] = "test"
 os.environ["EMAIL_PROVIDER"] = "log"

@@ -71,7 +71,7 @@ export default function Settings() {
         <div className="card">
           <h2>Placeholder values - owner must confirm</h2>
           <p className="muted small">These come from SPEC items marked VERIFY or from seeded examples. Edit the value in its tab, then mark it confirmed.</p>
-          <table><tbody>
+          <div className="table-wrap"><table><tbody>
             {s.placeholders.map((p: any) => (
               <tr key={p.key}>
                 <td>{p.confirmed ? <span className="pill green">confirmed</span> : <span className="placeholder-tag">placeholder - owner must confirm</span>}</td>
@@ -79,7 +79,7 @@ export default function Settings() {
                 <td>{isAdmin && <button className="small secondary" onClick={() => confirm(p.key, !p.confirmed)}>{p.confirmed ? "Reopen" : "Mark confirmed"}</button>}</td>
               </tr>
             ))}
-          </tbody></table>
+          </tbody></table></div>
         </div>
       )}
 
@@ -136,7 +136,7 @@ export default function Settings() {
           {Object.entries(s.tariff_slabs).map(([cat, slabs]: any) => (
             <div key={cat} style={{ marginBottom: 14 }}>
               <h3>{cat}</h3>
-              <table><thead><tr><th>Up to units (blank = above)</th><th>₹ / unit</th><th></th></tr></thead><tbody>
+              <div className="table-wrap"><table><thead><tr><th>Up to units (blank = above)</th><th>₹ / unit</th><th></th></tr></thead><tbody>
                 {slabs.map((row: any, i: number) => (
                   <tr key={i}>
                     <td><input value={row[0] ?? ""} disabled={!isAdmin} onChange={(e) => { const n = [...slabs]; n[i] = [e.target.value === "" ? null : Number(e.target.value), row[1]]; setS({ ...s, tariff_slabs: { ...s.tariff_slabs, [cat]: n } }); }} /></td>
@@ -144,7 +144,7 @@ export default function Settings() {
                     <td>{isAdmin && <button className="ghost" onClick={() => { const n = slabs.filter((_: any, j: number) => j !== i); setS({ ...s, tariff_slabs: { ...s.tariff_slabs, [cat]: n } }); }}>✕</button>}</td>
                   </tr>
                 ))}
-              </tbody></table>
+              </tbody></table></div>
               {isAdmin && <button className="small secondary" style={{ marginTop: 6 }} onClick={() => setS({ ...s, tariff_slabs: { ...s.tariff_slabs, [cat]: [...slabs, [null, "0"]] } })}>Add slab</button>}
               {slabs.length === 0 && <p className="muted small">No slabs: the flat commercial rate setting is used.</p>}
             </div>

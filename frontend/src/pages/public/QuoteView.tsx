@@ -60,11 +60,11 @@ export default function QuoteView() {
       </div>
       <div className="card" style={{ padding: 0 }}>
         <div className="table-wrap">
-          <table>
+          <table className="quote-lines">
             <thead><tr><th>#</th><th>Item</th><th className="num">Qty</th><th className="num">Rate</th><th className="num">GST</th><th className="num">Total</th></tr></thead>
             <tbody>{q.lines.map((l: any, i: number) => (
               <tr key={i}><td>{i + 1}</td><td><strong>{l.description}</strong>{l.details && <div className="muted small" style={{ whiteSpace: "pre-line" }}>{l.details}</div>}</td>
-                <td className="num">{Number(l.qty)} {l.unit}</td><td className="num">{inr(l.unit_price)}</td><td className="num">{Number(l.gst_pct)}%</td><td className="num">{inr(l.total)}</td></tr>
+                <td className="num" data-label="Qty">{Number(l.qty)} {l.unit}</td><td className="num" data-label="Rate">{inr(l.unit_price)}</td><td className="num" data-label="GST">{Number(l.gst_pct)}%</td><td className="num total" data-label="Total">{inr(l.total)}</td></tr>
             ))}</tbody>
           </table>
         </div>

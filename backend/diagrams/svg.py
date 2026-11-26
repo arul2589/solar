@@ -212,7 +212,7 @@ def cable_schedule(outputs: dict, title: str = "") -> str:
     H = 90 + row_h * (len(cables) + len(prot) + 3)
     b = [_t(W / 2, 26, title or "Cable and protection schedule", 16, weight="bold")]
     y = 54
-    cols = [(20, "From"), (330, "To"), (560, "Size"), (640, "Cores"), (720, "Length"), (800, "Type")]
+    cols = [(20, "From"), (270, "To"), (480, "Size"), (555, "Cores"), (615, "Length"), (680, "Type")]
     for x, h in cols:
         b.append(_t(x, y, h, 11, anchor="start", weight="bold"))
     b.append(f'<line x1="16" y1="{y + 5}" x2="{W - 16}" y2="{y + 5}" stroke="{INK}"/>')
@@ -221,7 +221,7 @@ def cable_schedule(outputs: dict, title: str = "") -> str:
         vals = [c["from"], c["to"], f"{c['size_mm2']:g} sq mm" if c.get("size_mm2") else "-", c.get("cores", ""),
                 f"{c['length_m']:g} m" if c.get("length_m") is not None else "as req.", c.get("type", "")]
         for (x, _), v in zip(cols, vals):
-            b.append(_t(x, y, str(v)[:44], 10.5, anchor="start"))
+            b.append(_t(x, y, str(v)[:54 if x == 680 else 40], 10.5, anchor="start"))
     y += row_h + 10
     b.append(_t(20, y, "Protection devices", 12, anchor="start", weight="bold"))
     y += 6
@@ -230,7 +230,7 @@ def cable_schedule(outputs: dict, title: str = "") -> str:
         y += row_h
         b.append(_t(20, y, p["location"], 10.5, anchor="start"))
         b.append(_t(160, y, p["device"], 10.5, anchor="start"))
-        b.append(_t(560, y, p["rating"], 10.5, anchor="start"))
+        b.append(_t(480, y, p["rating"], 10.5, anchor="start"))
         b.append(_t(900, y, f"qty {p['qty']}", 10.5, anchor="start"))
     if not cables:
         b.append(_t(W / 2, 90, "No electrical design (no feasible inverter/string arrangement).", 12, fill="#b42318"))

@@ -35,7 +35,7 @@ export default function Pipeline() {
           <button className={view === "list" ? "" : "secondary"} onClick={() => setV("list")}>List</button>
         </div>
       </div>
-      <div className="card">
+      <div className="card filters">
         <div className="row">
           <div><label>Search</label><input value={flt.q} onChange={set("q")} placeholder="Ref, name, phone" /></div>
           <div><label>Stage</label>

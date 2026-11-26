@@ -56,7 +56,7 @@ docker compose -p solar up -d --build        # http://localhost:8088
 docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python -m pytest -q
 # against Postgres
 docker compose -p solar exec db psql -U solar -c "CREATE DATABASE solar_test"   # once
-docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" -e DATABASE_URL=postgresql+psycopg://solar:solar-dev-password@db:5432/solar_test api python -m pytest -q
+docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" -e TEST_DATABASE_URL=postgresql+psycopg://solar:solar-dev-password@db:5432/solar_test api python -m pytest -q
 # end-to-end smoke test through the web proxy
 docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python scripts/smoke.py --base http://web --phase 3
 ```

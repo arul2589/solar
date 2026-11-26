@@ -115,7 +115,7 @@ export default function RequestDetail() {
                 <dt>Email</dt><dd>{c.email || "-"}</dd>
                 <dt>Language</dt><dd>{c.language === "ta" ? "Tamil" : "English"}</dd>
                 <dt>Address</dt><dd>{s.address}<br />{s.district} {s.pincode}</dd>
-                <dt>Building</dt><dd>{s.site_type}, {s.floors ?? "?"} floors</dd>
+                <dt>Building</dt><dd>{s.site_type}{s.floors != null && `, ${s.floors} floor(s)`}</dd>
                 <dt>EB no. / tariff</dt><dd>{s.eb_consumer_no || "-"} / {s.tariff || "-"}</dd>
                 <dt>Supply</dt><dd>{s.phase}-phase, sanction {s.sanction_load_kw ?? "?"} kW</dd>
                 <dt>Consumption</dt><dd>{r.monthly_units ? `${r.monthly_units} units/month` : ""} {r.monthly_bill ? `${inr(r.monthly_bill)}/month` : ""}</dd>

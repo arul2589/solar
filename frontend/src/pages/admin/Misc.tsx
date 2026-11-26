@@ -24,7 +24,7 @@ export function Users() {
     <div>
       <h1>Users & roles</h1>
       {err && <div className="err">{err}</div>}
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card table-wrap" style={{ padding: 0 }}>
         <table>
           <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Phone</th><th>2FA</th><th>Active</th><th></th></tr></thead>
           <tbody>{users.map((u) => edit?.id === u.id ? (
@@ -131,7 +131,7 @@ export function Platform() {
     <div>
       <h1>Installers (tenants)</h1>
       {err && <div className="err">{err}</div>}
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card table-wrap" style={{ padding: 0 }}>
         <table><thead><tr><th>Slug</th><th>Name</th><th>Status</th><th>Requests</th><th>Created</th><th></th></tr></thead>
           <tbody>{rows.map((i) => (
             <tr key={i.id}><td>{i.slug}</td><td>{i.name}</td><td>{i.status}</td><td>{i.requests}</td><td>{fmtDate(i.created_at)}</td>
