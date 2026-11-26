@@ -93,3 +93,17 @@ Theme changed to navy + sun-gold for the public site only (`.site-root` scope; a
   `npm run dev`; the live build hides them until real projects are added.
 - Checked: `tsc` passes; pages rendered server-side and screenshotted at desktop and mobile widths.
   Not yet run: `vite build` and the backend tests (run them in Docker, see "Tests" above).
+
+## Update 2026-11-26 (night): document knowledge base (RAG, OpenAI)
+- Admin → **Knowledge (AI)**: upload PDFs/images (or bulk import with `backend/scripts/kb_import.py`), indexing status,
+  "Ask the documents" with answers citing document + page (click a citation to open the PDF at that page).
+- Request → Review tab → **Design notes (AI)**: the engine's design (strings, cables, protection, earthing, structure,
+  approvals, battery) is checked against the documents with citations and OK / CHECK / CONFLICT verdicts.
+  It never changes calculations; quotations still come only from the tested engine. No prices are sent to the model.
+- Indexing (worker thread): text PDFs read directly (pypdfium2); scanned pages and images are transcribed by the
+  OpenAI vision model (diagrams described). Chunks + `text-embedding-3-small` (512 dims) stored in Postgres
+  (`kb_document`, `kb_chunk`, migration `c41f7a2be9d0`). Search = cosine similarity + keyword boost, per installer.
+- Config (.env): `OPENAI_API_KEY` (required), optional `OPENAI_CHAT_MODEL` / `OPENAI_VISION_MODEL` (default
+  `gpt-5.4-mini`), `OPENAI_EMBED_MODEL`. Without a key, uploads wait as "pending".
+- Roles: everyone on staff can ask; admin + engineer upload/re-index; admin deletes. Tests: `tests/test_knowledge.py`
+  (fake OpenAI client; tests never call OpenAI).

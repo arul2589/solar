@@ -46,9 +46,25 @@ def run_once() -> int:
     return total
 
 
+def kb_loop() -> None:
+    """Index uploaded knowledge-base documents (slow: vision transcription), separate from email."""
+    from .services import kb
+    while True:
+        try:
+            for iid in kb.installers_with_pending():
+                n = kb.process_pending(iid)
+                if n:
+                    log.info("indexed %s knowledge-base document(s) for installer %s", n, iid)
+        except Exception:  # noqa: BLE001
+            log.exception("knowledge-base loop error")
+        time.sleep(5)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     log.info("worker started")
+    import threading
+    threading.Thread(target=kb_loop, name="kb", daemon=True).start()
     while True:
         try:
             n = run_once()

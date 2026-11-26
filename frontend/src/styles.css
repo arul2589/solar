@@ -214,3 +214,17 @@ td.num, th.num { text-align: right; white-space: nowrap; }
   table.quote-lines td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 0.8rem; }
   table.quote-lines td.total { font-weight: 700; text-align: right; }
 }
+
+/* knowledge base (admin) */
+.answer-box { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.answer p { margin: 0 0 8px; }
+.answer h4 { margin: 14px 0 6px; font-size: 1rem; }
+.answer ul { margin: 0 0 10px; padding-left: 20px; }
+.answer li { margin: 3px 0; }
+.cite { text-decoration: none; font-weight: 700; padding: 0 1px; }
+.sources { margin-top: 10px; background: #f8fafb; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.sources summary { cursor: pointer; font-weight: 600; }
+.sources ol { margin: 8px 0 0; padding-left: 22px; }
+.sources li { margin-bottom: 8px; }
+.sources .snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pre-wrap { white-space: pre-wrap; font-size: .82rem; background: #f5f7f8; padding: 8px; border-radius: 6px; }

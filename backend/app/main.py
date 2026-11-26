@@ -27,7 +27,7 @@ def _optional_routers():
     # Phase 2/3 routers are added here as they are built; real import errors still surface
     import importlib
     import importlib.util
-    for name in ("quotations", "projects"):
+    for name in ("quotations", "projects", "knowledge"):
         if importlib.util.find_spec(f"app.routers.{name}") is None:
             continue
         mod = importlib.import_module(f"app.routers.{name}")

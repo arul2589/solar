@@ -66,3 +66,10 @@ Other design defaults (editable in Settings → Calculation, not flagged): tilt 
   the owner should add only real, verifiable facts.
 - Typical size bands on the solution pages (e.g. "2 – 3 kW for ~150–350 units") are generic guidance text, not calculation inputs.
 - Images with other companies' logos (uniforms, vests, shirts) from the reference set were not used.
+
+## 2026-11-26 knowledge base (RAG)
+- Owner asked for OpenAI. Bill reading still uses Anthropic (unchanged); the knowledge base uses OpenAI only.
+- RAG is advisory: it explains and cross-checks with citations; it does not feed numbers into analyses or quotations.
+- Vectors stored as JSON in Postgres (no pgvector) - fine for a few thousand passages; revisit if the library grows large.
+- PDF library: pypdfium2 (Apache/BSD) instead of PyMuPDF (AGPL) for a commercial deployment.
+- Videos are not indexed (would need audio transcription).

@@ -31,6 +31,14 @@ class Config(BaseSettings):
     anthropic_api_key: str = ""
     bill_reader_model: str = "claude-opus-5-5"
 
+    # document knowledge base (RAG) - OpenAI
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_chat_model: str = "gpt-5.4-mini"
+    openai_vision_model: str = "gpt-5.4-mini"
+    openai_embed_model: str = "text-embedding-3-small"
+    openai_embed_dims: int = 512
+
     access_token_minutes: int = 60 * 12
 
     @property

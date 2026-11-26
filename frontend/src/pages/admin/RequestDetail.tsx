@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, fmtDate, inr } from "../../api";
 import { AnalysisView, cleanOverrides, OverrideForm } from "../../components/Analysis";
+import { DesignNotes } from "./Knowledge";
 import { useRole } from "./AdminLayout";
 import { STAGE_LABEL } from "./Pipeline";
 
@@ -175,6 +176,8 @@ export default function RequestDetail() {
             </div>
             <AnalysisView o={outputs} />
           </div>
+
+          <DesignNotes requestId={r.id} analysisId={d.analysis?.id} />
 
           <div className="card">
             <h2>Override inputs</h2>
