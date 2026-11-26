@@ -19,10 +19,19 @@ export function Users() {
     try { await api(`/api/admin/users/${edit.id}`, { method: "PUT", json: { ...edit, password: edit.password || null } }); setEdit(null); load(); }
     catch (e: any) { setErr(e.message); }
   };
-  const roles = ["admin", "sales", "engineer", "technician"];
+  const roles = ["admin", "sales", "engineer", "technician", "normal"];
   return (
     <div>
       <h1>Users & roles</h1>
+      <div className="card small">
+        <dl className="kv">
+          <dt>admin</dt><dd>Everything: settings, users, prices and margins, quotations, delete documents</dd>
+          <dt>sales</dt><dd>Requests, customer details, prices and margins, create and send quotations</dd>
+          <dt>engineer</dt><dd>Requests, customer details, design and diagrams, prices (no margins), upload knowledge documents</dd>
+          <dt>technician</dt><dd>Assigned installation projects only (checklist, readings, photos); no prices</dd>
+          <dt>normal</dt><dd>Read-only: requests, designs, diagrams and knowledge base; customer name, phone, email, address and EB bill hidden; no prices</dd>
+        </dl>
+      </div>
       {err && <div className="err">{err}</div>}
       <div className="card table-wrap" style={{ padding: 0 }}>
         <table>

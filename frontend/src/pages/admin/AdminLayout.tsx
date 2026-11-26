@@ -2,10 +2,10 @@ import { NavLink, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { STAFF_KEY, staffSession } from "../../api";
 
 const LINKS: { to: string; label: string; roles: string[] }[] = [
-  { to: "/admin", label: "Pipeline", roles: ["admin", "sales", "engineer"] },
+  { to: "/admin", label: "Pipeline", roles: ["admin", "sales", "engineer", "normal"] },
   { to: "/admin/calculator", label: "Calculator", roles: ["admin", "sales", "engineer"] },
   { to: "/admin/projects", label: "Projects", roles: ["admin", "sales", "engineer", "technician"] },
-  { to: "/admin/knowledge", label: "Knowledge (AI)", roles: ["admin", "sales", "engineer", "technician"] },
+  { to: "/admin/knowledge", label: "Knowledge (AI)", roles: ["admin", "sales", "engineer", "technician", "normal"] },
   { to: "/admin/catalogue", label: "Price list & catalogue", roles: ["admin", "sales", "engineer"] },
   { to: "/admin/settings", label: "Settings", roles: ["admin", "sales", "engineer"] },
   { to: "/admin/users", label: "Users", roles: ["admin"] },

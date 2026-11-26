@@ -67,7 +67,9 @@ def get_quotation(qid: int, p: Principal = Depends(require_roles(*VIEWERS)), db:
     req = db.get(ServiceRequest, q.request_id)
     out = q_out(q, p.role)
     out["request"] = {"id": req.id, "reference": req.reference, "customer_name": req.customer.name,
-                      "customer_email": req.customer.email, "stage": req.stage}
+                      "customer_email": req.customer.email,
+                      "customer_whatsapp": req.customer.whatsapp, "contact_pref": req.customer.contact_pref or "email",
+                      "stage": req.stage}
     return out
 
 
@@ -145,15 +147,27 @@ def send_quotation(qid: int, background: BackgroundTasks, p: Principal = Depends
     dispatch_soon(background, p.installer_id)
     inst = db.get(Installer, q.installer_id)
     out = q_out(q, p.role)
-    out["email_status"] = "queued" if db.get(ServiceRequest, q.request_id).customer.email else "no_email"
+    cust = db.get(ServiceRequest, q.request_id).customer
+    pref = cust.contact_pref or "email"
+    wants_email = pref in ("email", "both") or not cust.whatsapp
+    out["email_status"] = ("queued" if wants_email else "not_requested") if cust.email else "no_email"
     out["customer_url"] = qs.quote_url(inst.slug, token)   # staff can also share it by WhatsApp/phone
+    # free WhatsApp delivery: a click-to-chat link staff open in their own WhatsApp (see services/whatsapp.py)
+    from ..services import settings as settings_svc
+    from ..services.whatsapp import quotation_link
+    wa_target = cust.whatsapp if (pref in ("whatsapp", "both") or not cust.email) else None
+    company = settings_svc.load_all(db)["company"].get("name") or inst.name
+    out["contact_pref"] = pref
+    out["whatsapp"] = quotation_link(number=wa_target, customer_name=cust.name, company=company,
+                                     quote_number=q.number, url=out["customer_url"],
+                                     lang=cust.preferred_language or "en") if wa_target else None
     if get_config().is_dev:
         out["dev_quote_url"] = out["customer_url"]
     return out
 
 
 @router.get("/analysis/{aid}/diagram/{kind}")
-def diagram(aid: int, kind: str, p: Principal = Depends(require_roles(*VIEWERS, "technician")),
+def diagram(aid: int, kind: str, p: Principal = Depends(require_roles(*VIEWERS, "technician", "normal")),
             db: Session = Depends(staff_db)):
     run = db.get(AnalysisRun, aid)
     if run is None:

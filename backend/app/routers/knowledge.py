@@ -19,7 +19,7 @@ from ..services.openai_client import AIError, OpenAIClient
 router = APIRouter(prefix="/api/admin", tags=["knowledge"])
 
 EDITORS = ("admin", "engineer")
-REVIEWERS = ("admin", "sales", "engineer")
+REVIEWERS = ("admin", "sales", "engineer", "normal")
 
 
 def get_ai() -> OpenAIClient:

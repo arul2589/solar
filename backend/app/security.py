@@ -17,9 +17,11 @@ from .config import get_config
 _ph = PasswordHasher()
 ALGO = "HS256"
 
-ROLES = ("admin", "sales", "engineer", "technician", "platform_owner")
+ROLES = ("admin", "sales", "engineer", "technician", "normal", "platform_owner")
+# "normal": read-only staff (requests, designs, diagrams, knowledge base) with customer details hidden
 PRICE_ROLES = {"admin", "sales", "engineer", "platform_owner"}    # technicians never see prices
 MARGIN_ROLES = {"admin", "sales"}
+PII_ROLES = {"admin", "sales", "engineer", "technician", "platform_owner"}   # may see customer contact details
 
 
 def hash_password(pw: str) -> str:

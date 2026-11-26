@@ -57,13 +57,20 @@ export default function QuoteBuilder() {
     const url = URL.createObjectURL(await res.blob());
     window.open(url, "_blank");
   };
+  const [wa, setWa] = useState<{ number: string; url: string; text: string } | null>(null);
   const send = async () => {
     if (dirty) { setErr("Save changes before sending."); return; }
-    if (!window.confirm(`Send quotation #${q.number} (${inr(q.grand_total)}) to ${q.request.customer_email || "the customer (no email on file - you will get a link to share)"}?`)) return;
-    setBusy(true); setErr("");
+    const pref = q.request.contact_pref || "email";
+    const via = [pref !== "whatsapp" && q.request.customer_email ? `email ${q.request.customer_email}` : "",
+                 pref !== "email" && q.request.customer_whatsapp ? `WhatsApp ${q.request.customer_whatsapp}` : ""].filter(Boolean).join(" and ");
+    if (!window.confirm(`Send quotation #${q.number} (${inr(q.grand_total)}) by ${via || "a link you share yourself"}?`)) return;
+    setBusy(true); setErr(""); setWa(null);
     try {
       const r = await api(`/api/admin/quotations/${id}/send`, { method: "POST" });
-      setMsg(`Sent. ${r.email_status === "no_email" ? "Customer has no email - share this link:" : "Email queued. Customer link:"} ${r.customer_url}`);
+      const parts = [r.email_status === "queued" ? "Email queued." : r.email_status === "not_requested" ? "Customer chose WhatsApp (no email sent)." : "No email on file."];
+      if (r.whatsapp) parts.push("Press \"Send on WhatsApp\" to message the customer.");
+      setMsg(`Sent. ${parts.join(" ")} Customer link: ${r.customer_url}`);
+      setWa(r.whatsapp || null);
       load();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
@@ -91,6 +98,16 @@ export default function QuoteBuilder() {
       </div>
       {err && <div className="err">{err}</div>}
       {msg && <div className="ok" style={{ wordBreak: "break-all" }}>{msg}</div>}
+      {wa && (
+        <div className="card wa-card">
+          <div>
+            <strong>WhatsApp {wa.number}</strong>
+            <div className="small muted">Opens WhatsApp with this message ready; press Send there. Free — uses your own WhatsApp Business number.</div>
+            <pre className="pre-wrap" style={{ marginTop: 8 }}>{wa.text}</pre>
+          </div>
+          <a className="btn wa-btn" href={wa.url} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+        </div>
+      )}
       {!editable && q.status !== "draft" && <div className="note">This quotation is {q.status} and locked. Use Revise to make a new version.</div>}
 
       <div className="card">

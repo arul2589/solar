@@ -25,7 +25,7 @@ export default function RequestForm() {
   const { t, lang } = useI18n();
   const info = useInstaller()!;
   const [f, setF] = useState<any>({
-    name: "", phone: "", email: "", address: "", pincode: "", district: "", site_type: "home",
+    name: "", phone: "", email: "", whatsapp: "", wa_same: true, contact_pref: "whatsapp", address: "", pincode: "", district: "", site_type: "home",
     eb_consumer_no: "", tariff: "", phase: 1, sanction_load_kw: "", monthly_units: "", monthly_bill: "",
     roof_type: "rcc", roof_area: "", roof_area_unit: "sqft", direction: "south", shade: "none", floors: "",
     goal: "reduce_bill", backup_load_w: "", budget_range: "", consent: false, website: "",
@@ -63,9 +63,13 @@ export default function RequestForm() {
     setErr("");
     if (!f.monthly_units && !f.monthly_bill) { setErr(t("units_or_bill") + " - " + t("required")); return; }
     if (!f.consent) { setErr(t("consent")); return; }
+    const wa = f.wa_same ? f.phone : f.whatsapp;
+    if (["email", "both"].includes(f.contact_pref) && !f.email.trim()) { setErr(t("need_email")); return; }
+    if (["whatsapp", "both"].includes(f.contact_pref) && wa.replace(/\D/g, "").length < 10) { setErr(t("need_whatsapp")); return; }
     const num = (v: any) => (v === "" || v === null ? null : Number(v));
     const data = {
-      ...f, language: lang, email: f.email || null, phase: Number(f.phase), sanction_load_kw: num(f.sanction_load_kw),
+      ...f, wa_same: undefined, language: lang, email: f.email.trim() || null,
+      whatsapp: ["whatsapp", "both"].includes(f.contact_pref) || wa.replace(/\D/g, "").length >= 10 ? (wa || null) : null, phase: Number(f.phase), sanction_load_kw: num(f.sanction_load_kw),
       monthly_units: num(f.monthly_units), monthly_bill: num(f.monthly_bill), roof_area: num(f.roof_area),
       floors: num(f.floors), backup_load_w: num(f.backup_load_w), phone_token: phoneToken || null,
       pincode: f.pincode || null, district: f.district || null, eb_consumer_no: f.eb_consumer_no || null,
@@ -122,7 +126,19 @@ export default function RequestForm() {
             {devCode && <span className="muted small">dev code: {devCode}</span>}
           </div>
         )}
-        <label>{t("email")}</label>
+        <label>{t("send_by")} *</label>
+        <Seg name="contact_pref" value={f.contact_pref} onChange={set("contact_pref")}
+          opts={[{ v: "whatsapp", k: "by_whatsapp" }, { v: "email", k: "by_email" }, { v: "both", k: "by_both" }]} />
+        {f.contact_pref !== "email" && (
+          <>
+            <label className="inline" style={{ marginTop: 10 }}>
+              <input type="checkbox" checked={f.wa_same} onChange={set("wa_same")} /> {t("whatsapp_same")}
+            </label>
+            {!f.wa_same && (<><label>{t("whatsapp")} *</label>
+              <input value={f.whatsapp} onChange={set("whatsapp")} inputMode="tel" autoComplete="tel" placeholder="98765 43210" /></>)}
+          </>
+        )}
+        <label>{t("email")}{f.contact_pref !== "whatsapp" ? " *" : ""}</label>
         <input type="email" value={f.email} onChange={set("email")} autoComplete="email" />
         <input className="hp" tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} aria-hidden="true" />
       </div>

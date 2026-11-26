@@ -97,6 +97,8 @@ class RequestIn(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     phone: str
     email: Optional[EmailStr] = None
+    whatsapp: Optional[str] = Field(default=None, max_length=20)
+    contact_pref: Literal["email", "whatsapp", "both"] = "email"
     language: Literal["en", "ta"] = "en"
     address: str = Field(min_length=3, max_length=1000)
     pincode: Optional[str] = Field(default=None, max_length=10)
@@ -122,6 +124,16 @@ class RequestIn(BaseModel):
     consent: bool
     phone_token: Optional[str] = None
     website: Optional[str] = None          # honeypot: must stay empty
+
+    @field_validator("whatsapp")
+    @classmethod
+    def _whatsapp(cls, v):
+        if v in (None, ""):
+            return None
+        p = normalise_phone(v)
+        if len(p) != 10:
+            raise ValueError("Enter a 10-digit WhatsApp number")
+        return p
 
     @field_validator("phone")
     @classmethod
@@ -159,6 +171,12 @@ async def submit_request(
         raise HTTPException(422, "Consent is required")
     if not body.monthly_units and not body.monthly_bill:
         raise HTTPException(422, "Give either average monthly units or the monthly bill amount")
+    if not body.email and not body.whatsapp:
+        raise HTTPException(422, "Give an email address or a WhatsApp number so we can send your quotation")
+    if body.contact_pref in ("email", "both") and not body.email:
+        raise HTTPException(422, "Enter your email address to get the quotation by email")
+    if body.contact_pref in ("whatsapp", "both") and not body.whatsapp:
+        raise HTTPException(422, "Enter your WhatsApp number to get the quotation on WhatsApp")
     if len(roof_photos) > 6:
         raise HTTPException(422, "Up to 6 roof photos")
 
@@ -192,11 +210,14 @@ async def submit_request(
 
     cust = db.scalar(select(Customer).where(Customer.phone == body.phone, Customer.deleted_at.is_(None)))
     if cust is None:
-        cust = Customer(name=body.name.strip(), phone=body.phone, email=body.email, preferred_language=body.language)
+        cust = Customer(name=body.name.strip(), phone=body.phone, email=body.email, whatsapp=body.whatsapp,
+                        contact_pref=body.contact_pref, preferred_language=body.language)
         db.add(cust)
     else:
         cust.name = body.name.strip()
         cust.email = body.email or cust.email
+        cust.whatsapp = body.whatsapp or cust.whatsapp
+        cust.contact_pref = body.contact_pref
         cust.preferred_language = body.language
     cust.consent_at = utcnow()
     cust.phone_verified = cust.phone_verified or phone_verified

@@ -274,7 +274,11 @@ def send(db: Session, q: Quotation, user_id: Optional[int]) -> str:
         req.stage = "quoted"
     cust = req.customer
     email_status = "no_email"
-    if cust.email:
+    pref = cust.contact_pref or "email"
+    wants_email = pref in ("email", "both") or not cust.whatsapp
+    if cust.email and not wants_email:
+        email_status = "not_requested"
+    if cust.email and wants_email:
         lang = cust.preferred_language if cust.preferred_language in ("en", "ta") else "en"
         s = load_all(db)
         row = queue_email(db, to=cust.email, template="quotation_ready", lang=lang, request_id=req.id,

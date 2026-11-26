@@ -107,3 +107,14 @@ Theme changed to navy + sun-gold for the public site only (`.site-root` scope; a
   `gpt-5.4-mini`), `OPENAI_EMBED_MODEL`. Without a key, uploads wait as "pending".
 - Roles: everyone on staff can ask; admin + engineer upload/re-index; admin deletes. Tests: `tests/test_knowledge.py`
   (fake OpenAI client; tests never call OpenAI).
+
+## Update 2026-11-27: quotation by email/WhatsApp, "normal" staff role
+- Request form: "Send my quotation by" WhatsApp / Email / Both (default WhatsApp, same as mobile unless changed).
+  At least an email or a WhatsApp number is required, and the chosen channel must be filled (checked on the server).
+- Send quotation: email goes only if the customer chose email/both; for WhatsApp the response includes a
+  click-to-chat link (`services/whatsapp.py`, https://wa.me/...) with the message ready in the customer's language.
+  Staff press "Send on WhatsApp" and then Send in their own WhatsApp Business app. No API, no cost.
+- New role "normal": read-only pipeline, request review, designs, diagrams, design notes and knowledge base.
+  Customer name, phone, email, WhatsApp, address, EB number, EB bill file, status link and quotations are removed
+  on the server; no prices; cannot edit, add notes, quote, see activity, projects or email log.
+- Migration `d7a3c5e1f2b4` (customer.whatsapp, customer.contact_pref). Tests: `tests/test_contact_roles.py`.

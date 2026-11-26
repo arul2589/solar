@@ -55,6 +55,8 @@ class Customer(TenantMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     phone: Mapped[str] = mapped_column(String(32), index=True)
     email: Mapped[Optional[str]] = mapped_column(String(200), index=True)
+    whatsapp: Mapped[Optional[str]] = mapped_column(String(32))          # 10-digit Indian mobile
+    contact_pref: Mapped[str] = mapped_column(String(12), default="email")  # email | whatsapp | both
     preferred_language: Mapped[str] = mapped_column(String(8), default="en")
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     consent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

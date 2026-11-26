@@ -14,7 +14,7 @@ from ..db import tenant_session, utcnow
 from ..deps import Principal, require_roles, staff_db
 from ..models import (STAGES, ActivityLog, AnalysisRun, Customer, EmailLog, Installer, Quotation, RequestFile,
                       ServiceRequest, Site, SubsidyCase, User)
-from ..security import MARGIN_ROLES, PRICE_ROLES, mask_email, mask_phone
+from ..security import MARGIN_ROLES, PII_ROLES, PRICE_ROLES, mask_email, mask_phone
 from ..services import activity, storage
 from ..services.analysis import OVERRIDABLE, analyse_request, preview
 from ..services.requests import notify_status, status_token, status_url
@@ -23,6 +23,8 @@ from ..worker import dispatch_soon
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 REVIEWERS = ("admin", "sales", "engineer")
+READERS = REVIEWERS + ("normal",)        # "normal" staff: read-only, customer details hidden
+HIDDEN = "Hidden"
 
 
 def strip_prices(outputs: dict, role: str) -> dict:
@@ -38,12 +40,14 @@ def strip_prices(outputs: dict, role: str) -> dict:
     return out
 
 
-def request_row(r: ServiceRequest, latest: Optional[AnalysisRun] = None) -> dict:
+def request_row(r: ServiceRequest, latest: Optional[AnalysisRun] = None, role: str = "admin") -> dict:
     o = (latest.outputs if latest else {}) or {}
     sizing = o.get("sizing") or {}
+    pii = role in PII_ROLES
     return {
         "id": r.id, "reference": r.reference, "stage": r.stage, "created_at": r.created_at.isoformat(),
-        "customer_name": r.customer.name, "phone_masked": mask_phone(r.customer.phone),
+        "customer_name": r.customer.name if pii else f"Customer {r.reference}",
+        "phone_masked": mask_phone(r.customer.phone) if pii else "",
         "district": r.site.district, "site_type": r.site.site_type, "phase": r.site.phase, "goal": r.goal,
         "owner_user_id": r.owner_user_id, "engineer_user_id": r.engineer_user_id,
         "kw": sizing.get("dc_kwp"), "panels": sizing.get("panel_count"),
@@ -56,7 +60,7 @@ def request_row(r: ServiceRequest, latest: Optional[AnalysisRun] = None) -> dict
 def list_requests(stage: Optional[str] = None, owner: Optional[int] = None, district: Optional[str] = None,
                   kw_min: Optional[float] = None, kw_max: Optional[float] = None,
                   date_from: Optional[str] = None, date_to: Optional[str] = None, q: Optional[str] = None,
-                  p: Principal = Depends(require_roles(*REVIEWERS)), db: Session = Depends(staff_db)):
+                  p: Principal = Depends(require_roles(*READERS)), db: Session = Depends(staff_db)):
     stmt = select(ServiceRequest).join(Customer, ServiceRequest.customer_id == Customer.id) \
         .join(Site, ServiceRequest.site_id == Site.id).order_by(ServiceRequest.id.desc())
     if stage:
@@ -71,12 +75,15 @@ def list_requests(stage: Optional[str] = None, owner: Optional[int] = None, dist
         stmt = stmt.where(ServiceRequest.created_at <= datetime.fromisoformat(date_to + "T23:59:59"))
     if q:
         like = f"%{q.lower()}%"
-        stmt = stmt.where(or_(func.lower(ServiceRequest.reference).like(like), func.lower(Customer.name).like(like),
-                              Customer.phone.like(f"%{q}%")))
+        if p.role in PII_ROLES:
+            stmt = stmt.where(or_(func.lower(ServiceRequest.reference).like(like), func.lower(Customer.name).like(like),
+                                  Customer.phone.like(f"%{q}%")))
+        else:   # no searching by name/phone for users who may not see them
+            stmt = stmt.where(func.lower(ServiceRequest.reference).like(like))
     reqs = db.scalars(stmt.limit(500)).unique().all()
     ids = [r.latest_analysis_id for r in reqs if r.latest_analysis_id]
     runs = {a.id: a for a in db.scalars(select(AnalysisRun).where(AnalysisRun.id.in_(ids)))} if ids else {}
-    rows = [request_row(r, runs.get(r.latest_analysis_id)) for r in reqs]
+    rows = [request_row(r, runs.get(r.latest_analysis_id), p.role) for r in reqs]
     if kw_min is not None:
         rows = [x for x in rows if x["kw"] is not None and x["kw"] >= kw_min]
     if kw_max is not None:
@@ -91,7 +98,7 @@ def _file_out(f: RequestFile) -> dict:
 
 
 @router.get("/requests/{rid}")
-def get_request(rid: int, p: Principal = Depends(require_roles(*REVIEWERS)), db: Session = Depends(staff_db)):
+def get_request(rid: int, p: Principal = Depends(require_roles(*READERS)), db: Session = Depends(staff_db)):
     r = db.get(ServiceRequest, rid)
     if r is None:
         raise HTTPException(404, "Request not found")
@@ -103,15 +110,19 @@ def get_request(rid: int, p: Principal = Depends(require_roles(*REVIEWERS)), db:
     quotes = db.scalars(select(Quotation).where(Quotation.request_id == rid).order_by(Quotation.id.desc())).all()
     c, s = r.customer, r.site
     inst = db.get(Installer, r.installer_id)
-    return {
-        "request": request_row(r, latest) | {
+    pii = p.role in PII_ROLES
+    if not pii:     # documents that carry personal details (EB bill) are not shown
+        files = [f for f in files if f.kind in ("roof_photo", "site_photo")]
+    out = {
+        "request": request_row(r, latest, p.role) | {
             "monthly_units": r.monthly_units and float(r.monthly_units),
             "monthly_bill": r.monthly_bill and float(r.monthly_bill), "budget_range": r.budget_range,
             "backup_load_w": r.backup_load_w and float(r.backup_load_w), "overrides": r.overrides or {},
             "lost_reason": r.lost_reason,
             "status_url": status_url(inst.slug, r.reference, status_token(r)),
         },
-        "customer": {"id": c.id, "name": c.name, "phone": c.phone, "email": c.email,
+        "customer": {"id": c.id, "name": c.name, "phone": c.phone, "email": c.email, "whatsapp": c.whatsapp,
+                     "contact_pref": c.contact_pref or "email",
                      "language": c.preferred_language, "phone_verified": c.phone_verified,
                      "consent_at": c.consent_at.isoformat() if c.consent_at else None},
         "site": {"address": s.address, "pincode": s.pincode, "district": s.district, "site_type": s.site_type,
@@ -131,6 +142,17 @@ def get_request(rid: int, p: Principal = Depends(require_roles(*REVIEWERS)), db:
                         "sent_at": q.sent_at.isoformat() if q.sent_at else None} for q in quotes],
         "overridable": sorted(OVERRIDABLE),
     }
+    if not pii:
+        out["hidden_customer_details"] = True
+        out["request"]["status_url"] = None
+        out["customer"] = {"id": c.id, "name": f"Customer {r.reference}", "phone": HIDDEN, "email": None,
+                           "whatsapp": None, "contact_pref": None, "language": c.preferred_language,
+                           "phone_verified": c.phone_verified, "consent_at": None}
+        out["site"] |= {"address": HIDDEN, "pincode": None, "eb_consumer_no": None}
+        out["quotations"] = []
+        for f in out["files"]:
+            f["extracted"] = None
+    return out
 
 
 class RequestPatch(BaseModel):
@@ -224,7 +246,7 @@ def rerun_analysis(rid: int, p: Principal = Depends(require_roles(*REVIEWERS)), 
 
 
 @router.get("/analysis/{aid}")
-def get_analysis(aid: int, p: Principal = Depends(require_roles(*REVIEWERS)), db: Session = Depends(staff_db)):
+def get_analysis(aid: int, p: Principal = Depends(require_roles(*READERS)), db: Session = Depends(staff_db)):
     a = db.get(AnalysisRun, aid)
     if a is None:
         raise HTTPException(404)
@@ -298,7 +320,7 @@ def anonymise(rid: int, p: Principal = Depends(require_roles("admin")), db: Sess
 
 
 @router.get("/dashboard")
-def dashboard(p: Principal = Depends(require_roles(*REVIEWERS)), db: Session = Depends(staff_db)):
+def dashboard(p: Principal = Depends(require_roles(*READERS)), db: Session = Depends(staff_db)):
     counts = dict(db.execute(select(ServiceRequest.stage, func.count()).group_by(ServiceRequest.stage)).all())
     return {"by_stage": {s: counts.get(s, 0) for s in STAGES},
             "emails_failed": db.scalar(select(func.count()).select_from(EmailLog)

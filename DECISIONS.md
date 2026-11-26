@@ -94,3 +94,10 @@ Known / accepted for now:
 - Magic sign-in links can be reused until they expire (30 min).
 - Rate limits are in-process (one API container); use a shared store if the API is scaled out.
 - OTP codes are written to the server log until a real SMS provider is configured.
+
+## 2026-11-27 WhatsApp and roles
+- Owner wants no running cost for WhatsApp: using official click-to-chat links (staff press Send), not the paid
+  WhatsApp Cloud API and not unofficial WhatsApp Web bots (Hermes/Baileys-style bridges risk a number ban).
+  n8n not used: it would add a server without removing any work. Automating later = Cloud API behind
+  `services/whatsapp.py` (about Rs 0.12 + GST per utility message from Oct 2026).
+- "normal" role = read-only without customer personal data; masking is done in the API, not just the UI.

@@ -228,3 +228,9 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .sources li { margin-bottom: 8px; }
 .sources .snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pre-wrap { white-space: pre-wrap; font-size: .82rem; background: #f5f7f8; padding: 8px; border-radius: 6px; }
+
+/* WhatsApp click-to-chat */
+.wa-card { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; border-color: #b7ebc6; background: #f3fcf6; }
+.wa-card > div { flex: 1 1 320px; }
+.btn.wa-btn { background: #1a9e4b; color: #fff; }
+.btn.wa-btn:hover { background: #15833e; }

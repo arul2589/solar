@@ -10,6 +10,7 @@ export default function RequestDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const role = useRole();
+  const ro = role === "normal";          // read-only staff: no edits, customer details hidden by the server
   const [d, setD] = useState<any>(null);
   const [tab, setTab] = useState("review");
   const [ov, setOv] = useState<any>({});
@@ -26,7 +27,7 @@ export default function RequestDetail() {
 
   const load = () => api(`/api/admin/requests/${id}`).then((r) => { setD(r); setOv(r.request.overrides || {}); setPreview(null); }).catch((e) => setErr(e.message));
   const loadAct = () => api(`/api/admin/requests/${id}/activity`).then(setAct).catch(() => {});
-  useEffect(() => { load(); loadAct(); }, [id]);
+  useEffect(() => { load(); if (!ro) loadAct(); }, [id]);
   useEffect(() => {
     api("/api/admin/users").then(setUsers).catch(() => {});
     api("/api/admin/panels").then(setPanels).catch(() => {});
@@ -102,7 +103,7 @@ export default function RequestDetail() {
       {err && <div className="err">{err}</div>}
       {msg && <div className="ok">{msg}</div>}
       <div className="tabs">
-        {["review", "diagrams", "quotations", "activity"].map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+        {(ro ? ["review", "diagrams"] : ["review", "diagrams", "quotations", "activity"]).map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
       </div>
 
       {tab === "review" && (
@@ -110,10 +111,13 @@ export default function RequestDetail() {
           <div className="grid2">
             <div className="card">
               <h2>Customer & site</h2>
+              {d.hidden_customer_details && <div className="note small">Customer contact details are hidden for your role.</div>}
               <dl className="kv">
                 <dt>Name</dt><dd>{c.name}</dd>
                 <dt>Phone</dt><dd><a href={`tel:${c.phone}`}>{c.phone}</a> {c.phone_verified && <span className="pill green">OTP verified</span>}</dd>
                 <dt>Email</dt><dd>{c.email || "-"}</dd>
+                {!d.hidden_customer_details && <><dt>WhatsApp</dt><dd>{c.whatsapp ? <a href={`https://wa.me/91${c.whatsapp}`} target="_blank" rel="noreferrer">{c.whatsapp}</a> : "-"}</dd>
+                <dt>Quotation by</dt><dd><span className="pill blue">{({ email: "Email", whatsapp: "WhatsApp", both: "Email + WhatsApp" } as any)[c.contact_pref] || "Email"}</span></dd></>}
                 <dt>Language</dt><dd>{c.language === "ta" ? "Tamil" : "English"}</dd>
                 <dt>Address</dt><dd>{s.address}<br />{s.district} {s.pincode}</dd>
                 <dt>Building</dt><dd>{s.site_type}{s.floors != null && `, ${s.floors} floor(s)`}</dd>
@@ -147,6 +151,7 @@ export default function RequestDetail() {
                 ))}
                 {d.files.length === 0 && <p className="muted">No uploads.</p>}
               </div>
+              {!ro && <>
               <h3 style={{ marginTop: 16 }}>Assignment & visit</h3>
               <div className="row">
                 <div><label>Owner (sales)</label>
@@ -166,6 +171,7 @@ export default function RequestDetail() {
                   <select value={r.stage} onChange={(e) => patch({ stage: e.target.value })}>
                     {Object.entries(STAGE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
               </div>
+              </>}
             </div>
           </div>
 
@@ -179,7 +185,7 @@ export default function RequestDetail() {
 
           <DesignNotes requestId={r.id} analysisId={d.analysis?.id} />
 
-          <div className="card">
+          {!ro && <div className="card">
             <h2>Override inputs</h2>
             <p className="muted small">Change any input; outputs above recalculate immediately. Save to store a new analysis run (old runs are kept).</p>
             <OverrideForm values={ov} base={d.analysis?.inputs} onChange={changeOv} panels={panels} inverters={inverters} />
@@ -187,9 +193,9 @@ export default function RequestDetail() {
               <button style={{ flex: "0 0 auto" }} onClick={saveOverrides}>Save inputs & re-analyse</button>
               <button className="secondary" style={{ flex: "0 0 auto" }} onClick={() => { setOv({}); changeOv({}); }}>Clear overrides</button>
             </div>
-          </div>
+          </div>}
 
-          <div className="card">
+          {!ro && <div className="card">
             <h2>Notes</h2>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note for the team" />
             <button style={{ marginTop: 8 }} onClick={addNote}>Add note</button>
@@ -198,7 +204,7 @@ export default function RequestDetail() {
                 <div className="small muted">{a.user} · {fmtDate(a.created_at)}</div>{a.detail.text}
               </div>
             ))}
-          </div>
+          </div>}
         </>
       )}
 
