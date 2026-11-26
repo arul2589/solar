@@ -102,7 +102,7 @@ export function ProjectDetail() {
             <option value="">{at("assign_tech")}</option>
             {users.filter((u) => u.active).map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
           </select>
-          <select style={{ flex: "0 0 170px" }} value={d.status} onChange={(e) => patch({ status: e.target.value })}>
+          <select style={{ flex: "0 0 auto", minWidth: 190 }} value={d.status} onChange={(e) => patch({ status: e.target.value })}>
             {Object.entries(STATUS_KEYS).map(([k, v]) => <option key={k} value={k}>{at(v)}</option>)}
           </select>
           <Link className="btn small secondary" style={{ flex: "0 0 auto" }} to={`/admin/requests/${d.request_id}`}>{at("request")}</Link>
@@ -188,6 +188,7 @@ export function ProjectDetail() {
           </div>
           {ex ? (<>
             <div className="muted small">{fmtDate(ex.created_at)}</div>
+            {ta && <div className="note small">{at("explain_ta_note")}</div>}
             <AnswerText text={ex.text} sources={ex.sources} />
             <SourceList sources={ex.sources} />
           </>) : <p className="muted">{at("explain_none")}</p>}

@@ -368,6 +368,14 @@ NOTE_TOPICS = [
 ]
 
 
+def _g(v):
+    """615.0 -> 615, 3.3 -> 3.3 (numbers from the database come back as decimals)."""
+    try:
+        return f"{float(v):g}"
+    except (TypeError, ValueError):
+        return v
+
+
 def design_summary(outputs: dict, inputs: dict) -> str:
     """Plain-text summary of an engine analysis, used as the subject of the design review."""
     sz = outputs.get("sizing") or {}
@@ -379,7 +387,7 @@ def design_summary(outputs: dict, inputs: dict) -> str:
     lay = roof.get("layout") or {}
     lines = [
         f"System type: {outputs.get('system_kind')}; supply {inputs.get('phase')}-phase; category {inputs.get('category')}",
-        f"Size: {sz.get('panel_count')} x {panel.get('wp')} Wp panels ({panel.get('model')}) = {sz.get('dc_kwp')} kWp",
+        f"Size: {sz.get('panel_count')} x {_g(panel.get('wp'))} Wp panels ({panel.get('model')}) = {sz.get('dc_kwp')} kWp",
         f"Inverter: {(outputs.get('inverter') or {}).get('count', 1)} x {inv.get('model')} {inv.get('ac_kw')} kW "
         f"{inv.get('phase')}-phase, max DC {inv.get('max_dc_voltage')} V, MPPT {inv.get('mppt_min_v')}-{inv.get('mppt_max_v')} V, "
         f"DC/AC ratio {(outputs.get('inverter') or {}).get('dc_ac_ratio')}",

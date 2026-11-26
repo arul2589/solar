@@ -116,7 +116,7 @@ def wiring_diagram(outputs: dict, title: str = "", theme: str = "dark") -> str:
     battery = outputs.get("battery") or {}
     three = int(inv.get("phase") or 1) == 3
     la = bool(el.get("lightning_arrester"))
-    wp = panel.get("wp", "?")
+    wp = _num(panel.get("wp"))
 
     W = 1400
     # ------------------------------------------------------------------ header

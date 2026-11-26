@@ -23,6 +23,7 @@ const en = {
   explain_title: "Why this design", explain_lead: "Plain-language explanation of this system, with references to your documents.",
   explain_none: "No explanation yet.", explain_make: "Create explanation", explain_again: "Create again",
   explain_working: "Writing…", explain_lang: "Language",
+  explain_ta_note: "Tamil text is written by AI. Have it checked before sharing with customers.",
 };
 
 type AKey = keyof typeof en;
@@ -47,6 +48,7 @@ const ta: Record<AKey, string> = {
   explain_title: "இந்த வடிவமைப்பு ஏன்", explain_lead: "இந்த அமைப்பின் எளிய விளக்கம், உங்கள் ஆவணங்களின் மேற்கோள்களுடன்.",
   explain_none: "இன்னும் விளக்கம் இல்லை.", explain_make: "விளக்கம் உருவாக்கு", explain_again: "மீண்டும் உருவாக்கு",
   explain_working: "எழுதுகிறது…", explain_lang: "மொழி",
+  explain_ta_note: "இந்தத் தமிழ் உரை AI மூலம் எழுதப்பட்டது. வாடிக்கையாளருக்குப் பகிரும் முன் சரிபார்க்கவும்.",
 };
 
 /** Tamil for the default checklist points, tools and net-metering documents (see backend services/projects.py).
