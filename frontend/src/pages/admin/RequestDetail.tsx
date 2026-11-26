@@ -257,7 +257,7 @@ function Diagrams({ analysisId }: { analysisId?: number }) {
   const [err, setErr] = useState("");
   useEffect(() => {
     if (!analysisId) return;
-    for (const k of ["sld", "roof", "schedule"]) {
+    for (const k of ["wiring", "sld", "roof", "schedule"]) {
       api(`/api/admin/analysis/${analysisId}/diagram/${k}`).then((r) => setSvgs((s) => ({ ...s, [k]: r.svg }))).catch((e) => setErr(e.message));
     }
   }, [analysisId]);
@@ -265,7 +265,7 @@ function Diagrams({ analysisId }: { analysisId?: number }) {
   return (
     <div>
       {err && <div className="err">{err}</div>}
-      {[["sld", "Single-line diagram"], ["roof", "Roof layout"], ["schedule", "Cable & protection schedule"]].map(([k, l]) => (
+      {[["wiring", "Wiring diagram"], ["sld", "Single-line diagram"], ["roof", "Roof layout"], ["schedule", "Cable & protection schedule"]].map(([k, l]) => (
         <div className="card" key={k}>
           <div className="topbar"><h2 style={{ margin: 0 }}>{l}</h2>
             {svgs[k] && <a className="btn small secondary" download={`${k}-${analysisId}.svg`} href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgs[k])}`}>Download SVG</a>}</div>

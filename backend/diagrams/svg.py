@@ -237,4 +237,12 @@ def cable_schedule(outputs: dict, title: str = "") -> str:
     return _svg(W, max(H, 140), "".join(b), "Cable and protection schedule")
 
 
-GENERATORS = {"sld": single_line_diagram, "roof": roof_layout, "schedule": cable_schedule}
+from .wiring import wiring_diagram  # noqa: E402
+
+
+def wiring_print(outputs: dict, title: str = "") -> str:
+    return wiring_diagram(outputs, title, theme="light")
+
+
+GENERATORS = {"sld": single_line_diagram, "roof": roof_layout, "schedule": cable_schedule,
+              "wiring": wiring_diagram, "wiring_print": wiring_print}

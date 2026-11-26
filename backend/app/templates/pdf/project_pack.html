@@ -58,7 +58,7 @@
   <h2>Net-metering documents (TANGEDCO)</h2>
   {% for d in p.pack.net_metering_docs %}<div><span class="box"></span>{{ d }}</div>{% endfor %}
 
-  {% for k, title in [("sld", "Single-line diagram"), ("roof", "Roof layout"), ("schedule", "Cable and protection schedule")] %}
+  {% for k, title in [("wiring_print", "Wiring diagram"), ("sld", "Single-line diagram"), ("roof", "Roof layout"), ("schedule", "Cable and protection schedule")] %}
   {% if diagrams[k] %}<div class="diagram"><h2>{{ title }}</h2><img src="{{ diagrams[k] }}"></div>{% endif %}
   {% endfor %}
 </body></html>

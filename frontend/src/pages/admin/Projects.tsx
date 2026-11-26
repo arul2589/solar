@@ -41,7 +41,7 @@ export function ProjectDetail() {
   useEffect(() => { load(); if (manager) api("/api/admin/users").then(setUsers).catch(() => {}); }, [id]);
   useEffect(() => {
     const aid = d?.pack?.analysis_run_id;
-    if (tab === "drawings" && aid) for (const k of ["sld", "roof", "schedule"]) api(`/api/admin/analysis/${aid}/diagram/${k}`).then((r) => setSvgs((s) => ({ ...s, [k]: r.svg })));
+    if (tab === "drawings" && aid) for (const k of ["wiring", "sld", "roof", "schedule"]) api(`/api/admin/analysis/${aid}/diagram/${k}`).then((r) => setSvgs((s) => ({ ...s, [k]: r.svg })));
   }, [tab, d?.pack?.analysis_run_id]);
 
   const patchItem = async (item: any, body: any) => {
@@ -150,7 +150,7 @@ export function ProjectDetail() {
         </>
       )}
 
-      {tab === "drawings" && ["sld", "roof", "schedule"].map((k) => (
+      {tab === "drawings" && ["wiring", "sld", "roof", "schedule"].map((k) => (
         <div className="card" key={k}><div className="svgbox" dangerouslySetInnerHTML={{ __html: svgs[k] || "Loading..." }} /></div>
       ))}
 

@@ -198,7 +198,7 @@ def pack_pdf(pid: int, p: Principal = Depends(require_roles(*ALL_STAFF)), db: Se
     run = db.get(AnalysisRun, proj.pack.get("analysis_run_id")) if proj.pack.get("analysis_run_id") else None
     svgs = {}
     if run:
-        for k in ("sld", "roof", "schedule"):
+        for k in ("wiring_print", "sld", "roof", "schedule"):
             svgs[k] = "data:image/svg+xml;base64," + base64.b64encode(diagram_svg(db, run, k).encode()).decode()
     html = _env.get_template("pdf/project_pack.html").render(p=data, company=s["company"], diagrams=svgs)
     return Response(html_to_pdf(html), media_type="application/pdf",
