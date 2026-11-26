@@ -133,3 +133,13 @@ Theme changed to navy + sun-gold for the public site only (`.site-root` scope; a
 - Project -> "Design explanation" tab: plain-language why-this-design in English or Tamil with citations; included in
   the project pack PDF (`?lang=ta`).
 - Tests: tests/test_kb_features.py (fake AI).
+
+## Deployment (Hostinger VPS behind Traefik)
+The VPS already runs Traefik on 80/443 for other sites, so this project joins it instead of binding ports:
+```bash
+git clone https://github.com/arul2589/solar.git /opt/solar && cd /opt/solar
+# .env: ENVIRONMENT=production, SECRET_KEY, POSTGRES_PASSWORD, PUBLIC_BASE_URL=https://solar.jujutech.tech,
+#       SOLAR_DOMAIN=solar.jujutech.tech, SEED_ADMIN_PASSWORD, SEED_DEMO_STAFF=0, OPENAI_API_KEY
+docker compose -p solar -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+```
+Update: `git pull && docker compose -p solar -f docker-compose.yml -f docker-compose.traefik.yml up -d --build`

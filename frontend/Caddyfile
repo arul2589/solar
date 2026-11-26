@@ -1,3 +1,11 @@
+# Behind another proxy (Traefik) on a private network: keep the visitor's real IP (X-Forwarded-For)
+# so rate limits and login lockouts are per visitor. Public clients cannot spoof it.
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 # SITE_ADDRESS=":80" for local HTTP; set it to "solar.example.com" in production and Caddy
 # obtains and renews HTTPS certificates automatically (HTTP is redirected to HTTPS).
 {$SITE_ADDRESS::80} {

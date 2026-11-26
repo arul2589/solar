@@ -1,0 +1,18 @@
+# Run behind an existing Traefik that already owns ports 80/443 (e.g. the Hostinger VPS).
+# Traefik terminates HTTPS with its "letsencrypt" resolver and redirects HTTP -> HTTPS;
+# Caddy inside the web container serves plain HTTP only.
+#
+#   docker compose -p solar -f docker-compose.yml -f docker-compose.traefik.yml up -d --build
+#
+# Needs SOLAR_DOMAIN in .env (e.g. solar.jujutech.tech) with a DNS A record pointing to the server.
+services:
+  web:
+    ports: !reset []
+    environment:
+      SITE_ADDRESS: ":80"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.solar.rule=Host(`${SOLAR_DOMAIN:?set SOLAR_DOMAIN in .env}`)
+      - traefik.http.routers.solar.entrypoints=websecure
+      - traefik.http.routers.solar.tls.certresolver=letsencrypt
+      - traefik.http.services.solar.loadbalancer.server.port=80
