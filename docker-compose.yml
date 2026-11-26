@@ -56,7 +56,10 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_DEFAULT_INSTALLER: ${SEED_INSTALLER_SLUG:-demo}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
     ports:

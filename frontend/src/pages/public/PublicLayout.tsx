@@ -113,7 +113,7 @@ export default function PublicLayout() {
           <div className="site-footer-inner">
             <div>
               <div className="brand footer-brand">
-                <span className="brand-sun"><Icon name="sun" size={24} /></span>
+                {info.logo_url ? <img src={info.logo_url} alt="" /> : <span className="brand-sun"><Icon name="sun" size={24} /></span>}
                 <span className="brand-name">{info.name}</span>
               </div>
               <p>{f.tagline}</p>
