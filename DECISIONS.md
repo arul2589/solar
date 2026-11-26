@@ -73,3 +73,24 @@ Other design defaults (editable in Settings → Calculation, not flagged): tilt 
 - Vectors stored as JSON in Postgres (no pgvector) - fine for a few thousand passages; revisit if the library grows large.
 - PDF library: pypdfium2 (Apache/BSD) instead of PyMuPDF (AGPL) for a commercial deployment.
 - Videos are not indexed (would need audio transcription).
+
+## 2026-11-26 security review
+Fixed:
+- Staff login: max 8 failed attempts per account and 30 per IP in 15 minutes (429); unknown accounts take the same
+  time as real ones (no email probing by timing); a successful login clears the account's counter.
+- Turning off 2FA now needs a current 2FA code.
+- Developer helpers (OTP code in API response, magic link in response, API docs/OpenAPI) only run on a local
+  address; a real domain never gets them, even if ENVIRONMENT is left as development.
+- ENVIRONMENT=production refuses to start with a default SECRET_KEY, default POSTGRES_PASSWORD or non-https
+  PUBLIC_BASE_URL.
+- Web server headers: Content-Security-Policy (own scripts only), HSTS, Permissions-Policy, COOP.
+- Knowledge-base prompts treat document text as data (prompt-injection guard).
+Checked and OK: tenant isolation (tests), role checks on every admin route, signed short-lived file links,
+path-traversal guard in storage, upload type sniffing + image re-encoding, size limits, Argon2 passwords,
+OTP attempt limits, HTML escaping in emails/PDF/SVG, no secrets in git history, .env ignored, API container runs
+as non-root, database not exposed on a host port.
+Known / accepted for now:
+- Staff tokens live 12 h in browser storage and are not revoked on password change (disabled users are blocked).
+- Magic sign-in links can be reused until they expire (30 min).
+- Rate limits are in-process (one API container); use a shared store if the API is scaled out.
+- OTP codes are written to the server log until a real SMS provider is configured.

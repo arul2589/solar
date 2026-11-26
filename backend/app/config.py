@@ -43,7 +43,28 @@ class Config(BaseSettings):
 
     @property
     def is_dev(self) -> bool:
-        return self.environment in ("development", "test")
+        """Dev helpers (OTP codes in API responses, API docs, links in responses) are on only for tests and
+        for development on a local address - never on a real domain, even if ENVIRONMENT was left unset."""
+        if self.environment == "test":
+            return True
+        if self.environment != "development":
+            return False
+        from urllib.parse import urlparse
+        host = (urlparse(self.public_base_url).hostname or "").lower()
+        return host in ("localhost", "127.0.0.1", "::1") or host.endswith((".localhost", ".test", ".local"))
+
+    def production_problems(self) -> list[str]:
+        """Settings that must be changed before the site is put on the internet."""
+        probs = []
+        weak = {"dev-secret-change-me", "dev-only-secret-key-change-me-0123456789abcdef",
+                "change-me-to-a-long-random-string-at-least-32-chars"}
+        if self.secret_key in weak or len(self.secret_key) < 32:
+            probs.append("SECRET_KEY is a default or shorter than 32 characters")
+        if "solar-dev-password" in self.database_url or ":change-me@" in self.database_url:
+            probs.append("POSTGRES_PASSWORD is the default value")
+        if not self.public_base_url.startswith("https://"):
+            probs.append("PUBLIC_BASE_URL must start with https://")
+        return probs
 
 
 @lru_cache

@@ -11,9 +11,19 @@ from .security import check_signature
 from .services import storage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+log = logging.getLogger("app")
+
+_cfg = get_config()
+if _cfg.environment == "production" and _cfg.production_problems():
+    # refuse to start an insecure production server; the log says exactly what to fix in .env
+    raise RuntimeError("Unsafe production settings: " + "; ".join(_cfg.production_problems()))
+if _cfg.environment == "development" and not _cfg.is_dev:
+    log.warning("ENVIRONMENT=development on a non-local PUBLIC_BASE_URL: developer helpers are switched off. "
+                "Set ENVIRONMENT=production for a real deployment.")
 
 app = FastAPI(title="Solar Platform API", version="1.0.0",
-              docs_url="/api/docs" if get_config().is_dev else None, openapi_url="/api/openapi.json")
+              docs_url="/api/docs" if _cfg.is_dev else None, redoc_url=None,
+              openapi_url="/api/openapi.json" if _cfg.is_dev else None)
 
 app.include_router(auth.router)
 app.include_router(public.router)
