@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { defaultSlug } from "./api";
+import Account from "./pages/admin/Account";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Catalogue from "./pages/admin/Catalogue";
 import Login from "./pages/admin/Login";
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="users" element={<Users />} />
         <Route path="emails" element={<Emails />} />
         <Route path="platform" element={<Platform />} />
+        <Route path="account" element={<Account />} />
         {phase2Admin}
       </Route>
       <Route path="*" element={<p style={{ padding: 20 }}>Page not found.</p>} />

@@ -140,7 +140,7 @@ export default function RequestForm() {
         )}
         <label>{t("email")}{f.contact_pref !== "whatsapp" ? " *" : ""}</label>
         <input type="email" value={f.email} onChange={set("email")} autoComplete="email" />
-        <input className="hp" tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} aria-hidden="true" />
+        <div style={{ display: "none" }} aria-hidden="true"><input name="hp_url_field" tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} /></div>
       </div>
 
       <div className="card">

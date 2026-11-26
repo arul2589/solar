@@ -237,6 +237,22 @@ def update_user(uid: int, body: UserIn, p: Principal = Depends(require_roles("ad
     return _user_out(u)
 
 
+class SetPasswordIn(BaseModel):
+    password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/users/{uid}/password")
+def set_user_password(uid: int, body: SetPasswordIn, p: Principal = Depends(require_roles("admin")),
+                      db: Session = Depends(staff_db)):
+    """Admin resets another user's password (e.g. a forgotten one)."""
+    u = db.get(User, uid)
+    if u is None:
+        raise HTTPException(404)
+    u.password_hash = hash_password(body.password)
+    activity.log(db, "password_reset_by_admin", user_id=p.user_id, target=u.id)
+    return {"ok": True}
+
+
 # ------------------------------------------------------------------ email log
 @router.get("/emails")
 def email_log(p: Principal = Depends(require_roles("admin", "sales")), db: Session = Depends(staff_db)):

@@ -7,6 +7,18 @@ export function Users() {
   const [f, setF] = useState<any>({ email: "", name: "", role: "sales", phone: "", password: "", active: true });
   const [edit, setEdit] = useState<any>(null);
   const [err, setErr] = useState("");
+  const [pw, setPw] = useState<any>(null);
+  const [pwMsg, setPwMsg] = useState("");
+  const setPassword = async () => {
+    setErr(""); setPwMsg("");
+    if (pw.password.length < 8) return setErr("Password must be at least 8 characters");
+    if (pw.password !== pw.again) return setErr("The two passwords do not match");
+    try {
+      await api(`/api/admin/users/${pw.id}/password`, { method: "POST", json: { password: pw.password } });
+      setPwMsg(`Password changed for ${pw.name}. Give them the new password privately.`);
+      setPw(null);
+    } catch (e: any) { setErr(e.message); }
+  };
   const load = () => api("/api/admin/users").then(setUsers).catch((e) => setErr(e.message));
   useEffect(() => { load(); }, []);
   const create = async () => {
@@ -42,14 +54,28 @@ export function Users() {
               <td><input value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></td>
               <td><select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>{roles.map((r) => <option key={r}>{r}</option>)}</select></td>
               <td><input value={edit.phone || ""} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></td>
-              <td><input placeholder="new password" type="password" value={edit.password || ""} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></td>
+              <td>{edit.two_factor ? "on" : "-"}</td>
               <td><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /></td>
               <td><button className="small" onClick={save}>Save</button> <button className="ghost" onClick={() => setEdit(null)}>Cancel</button></td>
             </tr>) : (
             <tr key={u.id}><td>{u.name}</td><td>{u.email}</td><td>{u.role}</td><td>{u.phone}</td><td>{u.two_factor ? "on" : "-"}</td><td>{u.active ? "yes" : "no"}</td>
-              <td><button className="small secondary" onClick={() => setEdit({ ...u, password: "" })}>Edit</button></td></tr>))}</tbody>
+              <td style={{ whiteSpace: "nowrap" }}><button className="small secondary" onClick={() => setEdit({ ...u, password: "" })}>Edit</button>{" "}
+                <button className="small secondary" onClick={() => { setPw({ id: u.id, name: u.name, email: u.email, password: "", again: "" }); setPwMsg(""); }}>Password</button></td></tr>))}</tbody>
         </table>
       </div>
+      {pwMsg && <div className="ok">{pwMsg}</div>}
+      {pw && (
+        <div className="card">
+          <h2>Set a new password for {pw.name} ({pw.email})</h2>
+          <div className="row">
+            <div><label>New password (min 8)</label><input type="password" autoComplete="new-password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} /></div>
+            <div><label>Type it again</label><input type="password" autoComplete="new-password" value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} /></div>
+            <button style={{ flex: "0 0 auto" }} onClick={setPassword}>Save password</button>
+            <button className="ghost" style={{ flex: "0 0 auto" }} onClick={() => setPw(null)}>Cancel</button>
+          </div>
+          <p className="small">To change your own password, use My account.</p>
+        </div>
+      )}
       <div className="card">
         <h2>Add user</h2>
         <div className="row">
@@ -61,12 +87,11 @@ export function Users() {
           <button style={{ flex: "0 0 auto" }} onClick={create}>Add</button>
         </div>
       </div>
-      <TwoFactor />
     </div>
   );
 }
 
-function TwoFactor() {
+export function TwoFactor() {
   const [setup, setSetup] = useState<any>(null);
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");

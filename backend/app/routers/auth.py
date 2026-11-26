@@ -4,7 +4,7 @@ from typing import Optional
 
 import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ..db import tenant_session
@@ -125,4 +125,27 @@ def twofa_disable(body: TwoFaOffIn, p: Principal = Depends(get_staff), db=Depend
         raise HTTPException(400, "Wrong two-factor code")
     user.totp_secret = None
     activity.log(db, "2fa_disabled", user_id=user.id)
+    return {"ok": True}
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/change-password")
+def change_password(body: PasswordChangeIn, p: Principal = Depends(get_staff), db=Depends(staff_db)):
+    """Any signed-in staff member changes their own password; needs the current one."""
+    key = f"pwchange:{p.installer_id}:{p.user_id}"
+    if blocked(key, MAX_FAILS_ACCOUNT, LOGIN_WINDOW_S):
+        raise HTTPException(429, "Too many wrong attempts. Wait 15 minutes and try again.")
+    user = db.get(User, p.user_id)
+    if user is None or not verify_password(body.current_password, user.password_hash):
+        record(key)
+        raise HTTPException(400, "Current password is wrong")
+    if body.new_password == body.current_password:
+        raise HTTPException(422, "New password must be different from the current one")
+    clear(key)
+    user.password_hash = hash_password(body.new_password)
+    activity.log(db, "password_changed", user_id=user.id)
     return {"ok": True}

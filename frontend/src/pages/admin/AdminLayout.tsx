@@ -12,6 +12,7 @@ const LINKS: { to: string; label: AKey; roles: string[] }[] = [
   { to: "/admin/users", label: "nav_users", roles: ["admin"] },
   { to: "/admin/emails", label: "nav_emails", roles: ["admin", "sales"] },
   { to: "/admin/platform", label: "nav_platform", roles: ["platform_owner"] },
+  { to: "/admin/account", label: "nav_account", roles: ["admin", "sales", "engineer", "technician", "normal", "platform_owner"] },
 ];
 
 export default function AdminLayout() {
