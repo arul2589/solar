@@ -101,3 +101,8 @@ Known / accepted for now:
   n8n not used: it would add a server without removing any work. Automating later = Cloud API behind
   `services/whatsapp.py` (about Rs 0.12 + GST per utility message from Oct 2026).
 - "normal" role = read-only without customer personal data; masking is done in the API, not just the UI.
+
+## 2026-11-27 RAG in planning/quotations
+- Documents reach the numbers only through settings the admin applies (with references and range checks);
+  the engine stays the single source of every number in diagrams and quotations.
+- Send gate is skipped when no OpenAI key or no indexed documents (nothing to check against).

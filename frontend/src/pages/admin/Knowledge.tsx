@@ -251,34 +251,97 @@ export default function Knowledge() {
   );
 }
 
-/** "Design notes (AI)" panel for a request: checks the engine's design against the documents. */
-export function DesignNotes({ requestId, analysisId }: { requestId: number; analysisId?: number }) {
+export type ReviewItem = { topic: string; design: string; documents: string; verdict: "OK" | "CHECK" | "CONFLICT" | "NOT_COVERED"; cite: number[] };
+export type Review = {
+  id: number; analysis_id: number; items: ReviewItem[]; sources: Source[]; summary: string; conflicts: number; checks: number;
+  created_at: string; acknowledged: boolean; acknowledged_at?: string | null; ack_note?: string | null; summary_text?: string;
+};
+const VERDICT: Record<string, [string, string]> = {
+  OK: ["green", "OK"], CHECK: ["amber", "Check on site"], CONFLICT: ["red", "Conflict"], NOT_COVERED: ["", "Not in documents"],
+};
+
+/** Table of design-check verdicts with citations, plus the acknowledgement form when there are conflicts. */
+export function ReviewView({ rv, onAck, canAck }: { rv: Review; onAck?: (r: Review) => void; canAck?: boolean }) {
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [res, setRes] = useState<{ notes: string; sources: Source[]; summary: string; analysis_id: number } | null>(null);
+  const byN = new Map(rv.sources.map((s) => [s.n, s]));
+  async function ack() {
+    setBusy(true); setErr("");
+    try { const r = await api<Review>(`/api/admin/design-reviews/${rv.id}/acknowledge`, { method: "POST", json: { note } }); onAck?.(r); }
+    catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+  const order = { CONFLICT: 0, CHECK: 1, OK: 2, NOT_COVERED: 3 } as Record<string, number>;
+  return (
+    <div>
+      <div className="row small" style={{ gap: 8, alignItems: "center" }}>
+        <span style={{ flex: "0 0 auto" }}><span className="pill red">{rv.conflicts} conflict(s)</span> <span className="pill amber">{rv.checks} to check</span></span>
+        <span className="muted" style={{ flex: "1 1 auto" }}>{rv.summary}</span>
+        <span className="muted" style={{ flex: "0 0 auto" }}>{fmtDate(rv.created_at)} · analysis #{rv.analysis_id}</span>
+      </div>
+      <div className="table-wrap">
+        <table className="review-table" style={{ marginTop: 8 }}>
+          <thead><tr><th>Topic</th><th>Design</th><th>Documents say</th><th>Result</th></tr></thead>
+          <tbody>
+            {[...rv.items].sort((a, b) => order[a.verdict] - order[b.verdict]).map((it) => (
+              <tr key={it.topic} className={it.verdict === "CONFLICT" ? "row-conflict" : ""}>
+                <td><strong>{it.topic}</strong></td>
+                <td className="small">{it.design || "-"}</td>
+                <td className="small">{plainMath(it.documents) || "-"}
+                  {it.cite.map((n) => { const s = byN.get(n); return s ? (
+                    <sup key={n}><a href="#" className="cite" title={`${s.title}, page ${s.page}`} onClick={(e) => { e.preventDefault(); openDocument(s.document_id, s.page); }}>[{n}]</a></sup>) : null; })}
+                </td>
+                <td><span className={`pill ${VERDICT[it.verdict][0]}`}>{VERDICT[it.verdict][1]}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <SourceList sources={rv.sources.filter((s) => rv.items.some((i) => i.cite.includes(s.n)))} />
+      {rv.conflicts > 0 && (rv.acknowledged ? (
+        <div className="ok small">Conflicts reviewed {fmtDate(rv.acknowledged_at)}: {rv.ack_note}</div>
+      ) : canAck ? (
+        <div className="note" style={{ marginTop: 10 }}>
+          <strong>Review the conflicts above before sending a quotation.</strong> Change the design (Override inputs) if the documents are right,
+          or explain why the design is correct:
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 6 sq mm cable chosen for the 40 m run; voltage drop checked by engineer" />
+          {err && <div className="err small">{err}</div>}
+          <button style={{ marginTop: 6 }} disabled={busy || note.trim().length < 5} onClick={ack}>I have reviewed these conflicts</button>
+        </div>
+      ) : null)}
+    </div>
+  );
+}
+
+/** "Design check" panel on a request: cross-checks the engine's design against the knowledge base. */
+export function DesignNotes({ requestId, analysisId }: { requestId: number; analysisId?: number }) {
+  const role = useRole();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [rv, setRv] = useState<Review | null>(null);
+  const [ready, setReady] = useState(true);
+  useEffect(() => {
+    if (!analysisId) return;
+    api(`/api/admin/requests/${requestId}/design-review?analysis_id=${analysisId}`).then((r) => { setRv(r.review); setReady(r.kb_ready); }).catch(() => {});
+  }, [requestId, analysisId]);
   async function run() {
     setBusy(true); setErr("");
-    try {
-      setRes(await api(`/api/admin/requests/${requestId}/design-notes`, { method: "POST", json: { analysis_id: analysisId } }));
-    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+    try { setRv(await api(`/api/admin/requests/${requestId}/design-notes`, { method: "POST", json: { analysis_id: analysisId } })); }
+    catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   return (
     <div className="card">
       <div className="topbar" style={{ marginBottom: 6 }}>
         <div>
-          <h2 style={{ margin: 0 }}>Design notes (AI, from your documents)</h2>
-          <p className="muted small" style={{ margin: "4px 0 0" }}>Checks strings, cables, protection, earthing, structure and approvals against the knowledge base. It does not change any calculation.</p>
+          <h2 style={{ margin: 0 }}>Design check (AI, from your documents)</h2>
+          <p className="muted small" style={{ margin: "4px 0 0" }}>Checks strings, cables, protection, earthing, structure and approvals against the knowledge base.
+            It never changes a calculation. Conflicts must be reviewed before a quotation from this analysis can be sent.</p>
         </div>
-        <button disabled={busy || !analysisId} onClick={run}>{busy ? "Reviewing…" : res ? "Run again" : "Generate design notes"}</button>
+        <button disabled={busy || !analysisId || !ready} onClick={run}>{busy ? "Checking…" : rv ? "Check again" : "Run design check"}</button>
       </div>
+      {!ready && <p className="muted small">Upload documents in Knowledge (AI) and set the OpenAI key to use the design check.</p>}
       {err && <div className="err">{err}</div>}
-      {res && (
-        <>
-          <details className="small"><summary>Design summary sent for review</summary><pre className="pre-wrap">{res.summary}</pre></details>
-          <AnswerText text={res.notes} sources={res.sources} />
-          <SourceList sources={res.sources} />
-        </>
-      )}
+      {rv && <ReviewView rv={rv} onAck={setRv} canAck={["admin", "sales", "engineer"].includes(role)} />}
     </div>
   );
 }

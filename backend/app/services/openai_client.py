@@ -67,6 +67,19 @@ class OpenAIClient:
         })
         return _content(data)
 
+    def chat_json(self, system: str, user: str) -> dict:
+        """Chat answer constrained to a JSON object (the prompt describes the shape)."""
+        import json
+        data = self._post("/chat/completions", {
+            "model": self.chat_model,
+            "response_format": {"type": "json_object"},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        })
+        try:
+            return json.loads(_content(data))
+        except ValueError as exc:
+            raise AIError("The model returned an unreadable answer; try again.") from exc
+
     def transcribe_image(self, image: bytes, content_type: str, prompt: str) -> str:
         url = f"data:{content_type};base64,{base64.b64encode(image).decode()}"
         data = self._post("/chat/completions", {

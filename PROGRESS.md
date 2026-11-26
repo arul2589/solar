@@ -118,3 +118,18 @@ Theme changed to navy + sun-gold for the public site only (`.site-root` scope; a
   Customer name, phone, email, WhatsApp, address, EB number, EB bill file, status link and quotations are removed
   on the server; no prices; cannot edit, add notes, quote, see activity, projects or email log.
 - Migration `d7a3c5e1f2b4` (customer.whatsapp, customer.contact_pref). Tests: `tests/test_contact_roles.py`.
+
+## Update 2026-11-27: Tamil admin (technicians), RAG wired into planning and quotations
+- Admin sidebar has English / தமிழ். Technician screens (projects, checklist, readings, photos, materials, drawings,
+  net-metering docs, design explanation) are fully EN/TA (`frontend/src/adminI18n.ts`, incl. Tamil for the default
+  checklist points, tools and TANGEDCO documents). Other admin pages still English.
+- Design check (`design_review` table, migration e5c2a9d4b7f1): structured OK / CHECK / CONFLICT / NOT_COVERED per topic
+  with citations. When the knowledge base is ready, a quotation cannot be sent until the check has been run for its
+  analysis and any CONFLICT is acknowledged with a reason (admin can send anyway with a logged reason).
+  A CONFLICT must cite a document, otherwise it is downgraded to CHECK.
+- Settings -> Placeholders -> "Suggest from documents" (admin): proposes values with references for yield, network %,
+  commercial tariff, single-phase limit (and text-only guidance for network rate, tariff slabs, panel datasheet).
+  "Apply values" changes only those fields (range-checked) and logs the sources; the admin then marks it confirmed.
+- Project -> "Design explanation" tab: plain-language why-this-design in English or Tamil with citations; included in
+  the project pack PDF (`?lang=ta`).
+- Tests: tests/test_kb_features.py (fake AI).

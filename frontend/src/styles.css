@@ -234,3 +234,12 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .wa-card > div { flex: 1 1 320px; }
 .btn.wa-btn { background: #1a9e4b; color: #fff; }
 .btn.wa-btn:hover { background: #15833e; }
+
+/* admin language switch */
+.admin-lang { display: flex; gap: 6px; margin-top: 10px; }
+.admin-lang button { background: transparent; border: 1px solid #3b5c4a; color: #cfe3d6; min-height: 28px; padding: 3px 10px; font-size: .8rem; }
+.admin-lang button.on { background: #cfe3d6; color: #12261c; }
+.suggest-box { margin-top: 8px; background: #f6faff; border: 1px solid #cfe0f5; border-radius: 8px; padding: 10px 12px; }
+.gate-card { border-color: #fedf89; background: #fffcf2; }
+.review-table td { vertical-align: top; }
+.review-table tr.row-conflict td { background: #fff4f2; }

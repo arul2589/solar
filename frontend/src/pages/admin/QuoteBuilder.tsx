@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ReviewView, type Review } from "./Knowledge";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, fmtDate, inr, staffSession } from "../../api";
 import { useRole } from "./AdminLayout";
@@ -58,22 +59,37 @@ export default function QuoteBuilder() {
     window.open(url, "_blank");
   };
   const [wa, setWa] = useState<{ number: string; url: string; text: string } | null>(null);
-  const send = async () => {
+  const [gate, setGate] = useState<any>(null);          // design check required / conflicts to review
+  const [gateRv, setGateRv] = useState<Review | null>(null);
+  const [gateBusy, setGateBusy] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
+  const send = async (opts: { confirmed?: boolean; skip?: string } = {}) => {
     if (dirty) { setErr("Save changes before sending."); return; }
     const pref = q.request.contact_pref || "email";
     const via = [pref !== "whatsapp" && q.request.customer_email ? `email ${q.request.customer_email}` : "",
                  pref !== "email" && q.request.customer_whatsapp ? `WhatsApp ${q.request.customer_whatsapp}` : ""].filter(Boolean).join(" and ");
-    if (!window.confirm(`Send quotation #${q.number} (${inr(q.grand_total)}) by ${via || "a link you share yourself"}?`)) return;
+    if (!opts.confirmed && !window.confirm(`Send quotation #${q.number} (${inr(q.grand_total)}) by ${via || "a link you share yourself"}?`)) return;
     setBusy(true); setErr(""); setWa(null);
     try {
-      const r = await api(`/api/admin/quotations/${id}/send`, { method: "POST" });
+      const r = await api(`/api/admin/quotations/${id}/send`, { method: "POST", json: opts.skip ? { skip_review_reason: opts.skip } : {} });
       const parts = [r.email_status === "queued" ? "Email queued." : r.email_status === "not_requested" ? "Customer chose WhatsApp (no email sent)." : "No email on file."];
       if (r.whatsapp) parts.push("Press \"Send on WhatsApp\" to message the customer.");
       setMsg(`Sent. ${parts.join(" ")} Customer link: ${r.customer_url}`);
-      setWa(r.whatsapp || null);
+      setWa(r.whatsapp || null); setGate(null); setGateRv(null);
       load();
-    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+    } catch (e: any) {
+      let detail: any = null;
+      try { detail = e.status === 409 ? JSON.parse(e.message) : null; } catch { detail = null; }
+      if (detail?.code) { setGate(detail); setGateRv(detail.review || null); }
+      else setErr(e.message);
+    } finally { setBusy(false); }
   };
+  const runCheck = async () => {
+    setGateBusy(true); setErr("");
+    try { setGateRv(await api(`/api/admin/requests/${q.request.id}/design-notes`, { method: "POST", json: { analysis_id: gate.analysis_id } })); }
+    catch (e: any) { setErr(e.message); } finally { setGateBusy(false); }
+  };
+  const gateClear = gateRv && (gateRv.conflicts === 0 || gateRv.acknowledged);
   const revise = async () => {
     const r = await api(`/api/admin/quotations/${id}/revise`, { method: "POST" });
     nav(`/admin/quotations/${r.id}`);
@@ -92,12 +108,27 @@ export default function QuoteBuilder() {
           <button className="secondary" onClick={() => openPdf(false)}>PDF preview</button>
           {showCost && <button className="secondary" onClick={() => openPdf(true)}>Internal estimate</button>}
           {editable && <button onClick={save} disabled={busy || !dirty}>Save</button>}
-          {["admin", "sales"].includes(role) && ["draft", "sent"].includes(q.status) && <button onClick={send} disabled={busy}>{q.status === "sent" ? "Re-send" : "Send quotation"}</button>}
+          {["admin", "sales"].includes(role) && ["draft", "sent"].includes(q.status) && <button onClick={() => send()} disabled={busy}>{q.status === "sent" ? "Re-send" : "Send quotation"}</button>}
           {["admin", "sales"].includes(role) && q.status !== "draft" && <button className="secondary" onClick={revise}>Revise (new number)</button>}
         </div>
       </div>
       {err && <div className="err">{err}</div>}
       {msg && <div className="ok" style={{ wordBreak: "break-all" }}>{msg}</div>}
+      {gate && (
+        <div className="card gate-card">
+          <h2 style={{ marginTop: 0 }}>Design check before sending</h2>
+          <p className="small">{gate.message}</p>
+          {!gateRv && <button disabled={gateBusy} onClick={runCheck}>{gateBusy ? "Checking against documents…" : "Run design check now"}</button>}
+          {gateRv && <ReviewView rv={gateRv} onAck={setGateRv} canAck />}
+          {gateClear && <button style={{ marginTop: 10 }} disabled={busy} onClick={() => send({ confirmed: true })}>Send quotation now</button>}
+          {role === "admin" && !gateClear && (
+            <details style={{ marginTop: 10 }}><summary className="small">Send without the design check (admin)</summary>
+              <textarea value={skipReason} onChange={(e) => setSkipReason(e.target.value)} placeholder="Reason (kept in the activity log)" />
+              <button className="secondary small" disabled={busy || skipReason.trim().length < 5} onClick={() => send({ confirmed: true, skip: skipReason })}>Send anyway</button>
+            </details>
+          )}
+        </div>
+      )}
       {wa && (
         <div className="card wa-card">
           <div>

@@ -33,6 +33,11 @@ class FakeAI:
         self.chats.append((system, user))
         return "Use 4 mm2 solar DC cable [1]."
 
+    def chat_json(self, system, user):
+        self.chats.append((system, user))
+        return {"summary": "ok", "items": [{"topic": "Earthing and lightning protection", "design": "3 pits",
+                                            "documents": "below 5 ohm", "verdict": "OK", "cite": [1]}]}
+
     def transcribe_image(self, image, content_type, prompt):
         self.vision_calls += 1
         return "DIAGRAM: three panels in series, string fuse 15 A, SPD in DCDB, earthing pit resistance below 5 ohm."
@@ -133,9 +138,10 @@ def test_design_notes_for_request(client, alpha_admin, database, fake_ai):
     r = client.post(f"/api/admin/requests/{rid}/design-notes", headers=alpha_admin, json={})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["sources"] and "kWp" in body["summary"]
+    assert body["sources"] and "kWp" in body["summary_text"]
+    assert body["conflicts"] == 0 and body["items"][0]["verdict"] == "OK"
     system, user = fake_ai.chats[-1]
-    assert "Never change or recalculate" in system
+    assert "Never recalculate" in system
     assert "Design from the calculation engine" in user
     # no prices are sent to the model
     assert "grand_total" not in user and "₹" not in user

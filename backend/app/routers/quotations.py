@@ -133,12 +133,26 @@ def quotation_pdf(qid: int, internal: bool = False, p: Principal = Depends(requi
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
 
 
+class SendIn(BaseModel):
+    skip_review_reason: Optional[str] = Field(default=None, max_length=1000)
+
+
 @router.post("/quotations/{qid}/send")
-def send_quotation(qid: int, background: BackgroundTasks, p: Principal = Depends(require_roles(*QUOTERS)),
-                   db: Session = Depends(staff_db)):
+def send_quotation(qid: int, background: BackgroundTasks, body: Optional[SendIn] = None,
+                   p: Principal = Depends(require_roles(*QUOTERS)), db: Session = Depends(staff_db)):
+    from ..services import kb
     q = db.get(Quotation, qid)
     if q is None:
         raise HTTPException(404)
+    # design check against the knowledge base must be done (and conflicts acknowledged) before sending
+    gate = kb.send_gate(db, q.analysis_run_id)
+    if gate:
+        reason = (body.skip_review_reason or "").strip() if body else ""
+        if p.role == "admin" and len(reason) >= 5:
+            activity.log(db, "design_review_skipped", request_id=q.request_id, quotation_id=q.id, user_id=p.user_id,
+                         reason=reason, gate=gate["code"])
+        else:
+            raise HTTPException(409, gate)
     try:
         token = qs.send(db, q, p.user_id)
     except ValueError as exc:

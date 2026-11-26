@@ -190,8 +190,36 @@ async def add_photo(pid: int, file: UploadFile = File(...), p: Principal = Depen
     return {"id": f.id, "url": storage.signed_url(key)}
 
 
+def _simple_html(text: str) -> str:
+    """Model text (headings, bullets, **bold**) -> safe HTML for the PDF."""
+    import html as _h
+    import re as _re
+    out, in_list = [], False
+    for raw in (text or "").splitlines():
+        line = _h.escape(raw.rstrip())
+        line = _re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
+        m_b = _re.match(r"^\s*(?:[-*•]|\d+[.)])\s+(.*)$", line)
+        m_h = _re.match(r"^#{1,4}\s+(.*)$", line)
+        if m_b:
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{m_b.group(1)}</li>")
+            continue
+        if in_list:
+            out.append("</ul>")
+            in_list = False
+        if m_h:
+            out.append(f"<h3>{m_h.group(1)}</h3>")
+        elif line.strip():
+            out.append(f"<p>{line}</p>")
+    if in_list:
+        out.append("</ul>")
+    return "".join(out)
+
+
 @router.get("/projects/{pid}/pack.pdf")
-def pack_pdf(pid: int, p: Principal = Depends(require_roles(*ALL_STAFF)), db: Session = Depends(staff_db)):
+def pack_pdf(pid: int, lang: str = "en", p: Principal = Depends(require_roles(*ALL_STAFF)), db: Session = Depends(staff_db)):
     proj = _get(db, pid, p)
     data = _get_project_out(db, proj, p)
     s = load_all(db)
@@ -200,7 +228,14 @@ def pack_pdf(pid: int, p: Principal = Depends(require_roles(*ALL_STAFF)), db: Se
     if run:
         for k in ("wiring_print", "sld", "roof", "schedule"):
             svgs[k] = "data:image/svg+xml;base64," + base64.b64encode(diagram_svg(db, run, k).encode()).decode()
-    html = _env.get_template("pdf/project_pack.html").render(p=data, company=s["company"], diagrams=svgs)
+    exps = (proj.pack or {}).get("explanation") or {}
+    ex = exps.get(lang) or exps.get("en") or exps.get("ta")
+    explanation = None
+    if ex:
+        from markupsafe import Markup
+        explanation = {"html": Markup(_simple_html(ex.get("text", ""))), "sources": ex.get("sources", [])}
+    html = _env.get_template("pdf/project_pack.html").render(p=data, company=s["company"], diagrams=svgs,
+                                                               explanation=explanation)
     return Response(html_to_pdf(html), media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="project-pack-{data["reference"]}.pdf"'})
 

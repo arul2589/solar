@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api";
 import { useRole } from "./AdminLayout";
+import { SuggestButton } from "./SuggestPanel";
 
 const COMPANY_FIELDS: [string, string][] = [
   ["name", "Company name"], ["contact_person", "Contact person"], ["address", "Address"], ["phone", "Phone"],
@@ -32,6 +33,9 @@ export default function Settings() {
   const [tplText, setTplText] = useState("");
   const [logo, setLogo] = useState<File | null>(null);
 
+  const [suggestable, setSuggestable] = useState<Record<string, boolean>>({});
+  const [kbReady, setKbReady] = useState(false);
+  useEffect(() => { if (isAdmin) api("/api/admin/settings/suggestable").then((r) => { setSuggestable(r.keys); setKbReady(r.kb_ready); }).catch(() => {}); }, [isAdmin]);
   const load = () => api("/api/admin/settings").then((r) => { setS(r); setTplText(JSON.stringify(r.templates || {}, null, 2)); }).catch((e) => setErr(e.message));
   useEffect(() => { load(); }, []);
 
@@ -70,12 +74,15 @@ export default function Settings() {
       {tab === "placeholders" && (
         <div className="card">
           <h2>Placeholder values - owner must confirm</h2>
-          <p className="muted small">These come from SPEC items marked VERIFY or from seeded examples. Edit the value in its tab, then mark it confirmed.</p>
+          <p className="muted small">These come from SPEC items marked VERIFY or from seeded examples. Edit the value in its tab, then mark it confirmed.
+            {isAdmin && (kbReady ? " Where shown, “Suggest from documents” reads your knowledge base and proposes a value with references; nothing changes until you apply it."
+              : " Upload documents in Knowledge (AI) to get suggestions from them.")}</p>
           <div className="table-wrap"><table><tbody>
             {s.placeholders.map((p: any) => (
               <tr key={p.key}>
                 <td>{p.confirmed ? <span className="pill green">confirmed</span> : <span className="placeholder-tag">placeholder - owner must confirm</span>}</td>
-                <td><code className="small">{p.key}</code><div>{p.message}</div></td>
+                <td><code className="small">{p.key}</code><div>{p.message}</div>
+                  {isAdmin && kbReady && p.key in suggestable && <SuggestButton k={p.key} onApplied={load} />}</td>
                 <td>{isAdmin && <button className="small secondary" onClick={() => confirm(p.key, !p.confirmed)}>{p.confirmed ? "Reopen" : "Mark confirmed"}</button>}</td>
               </tr>
             ))}

@@ -12,6 +12,7 @@
   .step { page-break-inside: avoid; margin-bottom: 6px; }
   .diagram { page: landscape; page-break-before: always; } .diagram img { width: 100%; }
   .muted { color: #666; } .ok { color: #067647; } .bad { color: #b42318; font-weight: bold; }
+  .explain h3 { font-size: 12pt; margin: 10px 0 4px; } .explain li, .explain p { font-size: 10pt; } .small { font-size: 9pt; }
 </style></head>
 <body>
   <h1>Project pack - {{ p.reference }}</h1>
@@ -57,6 +58,15 @@
 
   <h2>Net-metering documents (TANGEDCO)</h2>
   {% for d in p.pack.net_metering_docs %}<div><span class="box"></span>{{ d }}</div>{% endfor %}
+
+  {% if explanation %}
+  <div class="diagram">
+    <h2>Why this design / இந்த வடிவமைப்பு ஏன்</h2>
+    <div class="explain">{{ explanation.html }}</div>
+    {% if explanation.sources %}<p class="small"><strong>References:</strong>
+      {% for s in explanation.sources %}[{{ s.n }}] {{ s.title }}, p.{{ s.page }}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+  </div>
+  {% endif %}
 
   {% for k, title in [("wiring_print", "Wiring diagram"), ("sld", "Single-line diagram"), ("roof", "Roof layout"), ("schedule", "Cable and protection schedule")] %}
   {% if diagrams[k] %}<div class="diagram"><h2>{{ title }}</h2><img src="{{ diagrams[k] }}"></div>{% endif %}

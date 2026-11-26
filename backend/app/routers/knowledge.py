@@ -121,21 +121,136 @@ class NotesIn(BaseModel):
     analysis_id: Optional[int] = None
 
 
-@router.post("/requests/{rid}/design-notes")
-def request_design_notes(rid: int, body: NotesIn | None = None, p: Principal = Depends(require_roles(*REVIEWERS)),
-                         db: Session = Depends(staff_db), ai=Depends(get_ai)):
-    r = db.get(ServiceRequest, rid)
-    if r is None:
-        raise HTTPException(404, "Request not found")
-    aid = (body.analysis_id if body and body.analysis_id else None) or r.latest_analysis_id
+def _run_for(db: Session, r: ServiceRequest, analysis_id: Optional[int]) -> AnalysisRun:
+    aid = analysis_id or r.latest_analysis_id
     run = db.get(AnalysisRun, aid) if aid else None
     if run is None or run.request_id != r.id:
         raise HTTPException(409, "This request has no analysis yet")
+    return run
+
+
+@router.post("/requests/{rid}/design-notes")
+def request_design_notes(rid: int, body: NotesIn | None = None, p: Principal = Depends(require_roles(*REVIEWERS)),
+                         db: Session = Depends(staff_db), ai=Depends(get_ai)):
+    """Run the design check (structured verdicts with citations) for the request's analysis."""
+    r = db.get(ServiceRequest, rid)
+    if r is None:
+        raise HTTPException(404, "Request not found")
+    run = _run_for(db, r, body.analysis_id if body else None)
     if not allow(f"kb-notes:{p.installer_id}:{p.user_id}", 60):
         raise HTTPException(429, "Too many requests this hour; try again later.")
     try:
-        out = kb.design_notes(db, run.outputs or {}, run.inputs or {}, ai)
+        rv = kb.run_design_review(db, run, ai, p.user_id)
     except AIError as exc:
         raise HTTPException(502, str(exc))
-    activity.log(db, "kb_design_notes", request_id=r.id, user_id=p.user_id, analysis_id=run.id)
-    return {"analysis_id": run.id, **out}
+    activity.log(db, "kb_design_review", request_id=r.id, user_id=p.user_id, analysis_id=run.id,
+                 conflicts=rv.conflicts, checks=rv.checks)
+    return {"summary_text": kb.design_summary(run.outputs or {}, run.inputs or {}), **kb.review_out(rv)}
+
+
+@router.get("/requests/{rid}/design-review")
+def get_design_review(rid: int, analysis_id: Optional[int] = None, p: Principal = Depends(require_roles(*REVIEWERS)),
+                      db: Session = Depends(staff_db)):
+    r = db.get(ServiceRequest, rid)
+    if r is None:
+        raise HTTPException(404, "Request not found")
+    aid = analysis_id or r.latest_analysis_id
+    rv = kb.latest_review(db, aid) if aid else None
+    return {"review": kb.review_out(rv) if rv else None, "kb_ready": kb.kb_ready(db)}
+
+
+class AckIn(BaseModel):
+    note: str = Field(min_length=5, max_length=2000)
+
+
+@router.post("/design-reviews/{review_id}/acknowledge")
+def acknowledge_review(review_id: int, body: AckIn, p: Principal = Depends(require_roles("admin", "sales", "engineer")),
+                       db: Session = Depends(staff_db)):
+    from ..db import utcnow
+    from ..models import DesignReview
+    rv = db.get(DesignReview, review_id)
+    if rv is None:
+        raise HTTPException(404, "Review not found")
+    rv.acknowledged_by, rv.acknowledged_at, rv.ack_note = p.user_id, utcnow(), body.note.strip()
+    run = db.get(AnalysisRun, rv.analysis_run_id)
+    activity.log(db, "kb_conflicts_acknowledged", request_id=run.request_id if run else None, user_id=p.user_id,
+                 review_id=rv.id, conflicts=rv.conflicts, note=rv.ack_note)
+    return kb.review_out(rv)
+
+
+# ------------------------------------------------------------------ placeholder settings from documents
+@router.get("/settings/suggestable")
+def suggestable(p: Principal = Depends(require_roles("admin")), db: Session = Depends(staff_db)):
+    return {"keys": {k: bool(v["fields"]) for k, v in kb.SUGGEST.items()}, "kb_ready": kb.kb_ready(db)}
+
+
+@router.post("/settings/placeholders/{key}/suggest")
+def suggest_placeholder(key: str, p: Principal = Depends(require_roles("admin")), db: Session = Depends(staff_db),
+                        ai=Depends(get_ai)):
+    from ..services.settings import load_all
+    if key not in kb.SUGGEST:
+        raise HTTPException(404, "No document suggestion for this setting")
+    try:
+        return kb.suggest_setting(db, key, ai, load_all(db)["calc"])
+    except AIError as exc:
+        raise HTTPException(502, str(exc))
+
+
+class ApplyIn(BaseModel):
+    values: dict[str, float]
+    sources: list[dict] = []
+
+
+@router.post("/settings/placeholders/{key}/apply")
+def apply_placeholder(key: str, body: ApplyIn, p: Principal = Depends(require_roles("admin")),
+                      db: Session = Depends(staff_db)):
+    """Write only the suggested fields into the calculation settings (other values are kept)."""
+    from solarcalc import CalcSettings
+    from ..services.settings import load_all, save_section
+    spec = kb.SUGGEST.get(key)
+    if spec is None or not spec["fields"]:
+        raise HTTPException(404, "This setting cannot be applied automatically")
+    current = dict(load_all(db)["calc"])
+    for f, v in body.values.items():
+        if f not in spec["fields"]:
+            raise HTTPException(422, f"{f} is not part of {key}")
+        lo, hi, unit = spec["fields"][f]
+        if not lo <= v <= hi:
+            raise HTTPException(422, f"{f} must be between {lo} and {hi} {unit}")
+        current[f] = v
+    if current.get("realistic_yield_low", 0) > current.get("realistic_yield_high", 99):
+        raise HTTPException(422, "Low yield cannot be above high yield")
+    save_section(db, "calc", CalcSettings.from_dict(current).to_dict())
+    activity.log(db, "settings_from_documents", user_id=p.user_id, key=key, values=body.values,
+                 sources=[f"{s_.get('title')} p.{s_.get('page')}" for s_ in body.sources][:10])
+    return {"ok": True, "calc": load_all(db)["calc"]}
+
+
+# ------------------------------------------------------------------ design explanation for a project
+class ExplainIn(BaseModel):
+    lang: str = Field(default="en", pattern="^(en|ta)$")
+
+
+@router.post("/projects/{pid}/explanation")
+def project_explanation(pid: int, body: ExplainIn, p: Principal = Depends(require_roles("admin", "sales", "engineer")),
+                        db: Session = Depends(staff_db), ai=Depends(get_ai)):
+    from sqlalchemy.orm.attributes import flag_modified
+    from ..models import Project
+    proj = db.get(Project, pid)
+    if proj is None:
+        raise HTTPException(404, "Project not found")
+    run = db.get(AnalysisRun, (proj.pack or {}).get("analysis_run_id") or 0)
+    if run is None:
+        raise HTTPException(409, "This project has no design to explain")
+    if not allow(f"kb-explain:{p.installer_id}:{p.user_id}", 40):
+        raise HTTPException(429, "Too many requests this hour; try again later.")
+    try:
+        ex = kb.design_explanation(db, run.outputs or {}, run.inputs or {}, ai, body.lang)
+    except AIError as exc:
+        raise HTTPException(502, str(exc))
+    pack = dict(proj.pack or {})
+    pack["explanation"] = {**(pack.get("explanation") or {}), body.lang: ex}
+    proj.pack = pack
+    flag_modified(proj, "pack")
+    activity.log(db, "project_explanation", request_id=proj.request_id, user_id=p.user_id, lang=body.lang)
+    return ex

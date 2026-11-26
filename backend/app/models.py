@@ -423,3 +423,21 @@ class KbChunk(TenantMixin, Base):
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[Optional[list]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class DesignReview(TenantMixin, Base):
+    """AI cross-check of an analysis run against the knowledge base. Conflicts must be acknowledged by staff
+    before a quotation from that run can be sent."""
+    __tablename__ = "design_review"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    analysis_run_id: Mapped[int] = mapped_column(ForeignKey("analysis_run.id", ondelete="CASCADE"), index=True)
+    items: Mapped[list] = mapped_column(JSON, default=list)       # [{topic, design, documents, verdict, cite}]
+    sources: Mapped[list] = mapped_column(JSON, default=list)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    conflicts: Mapped[int] = mapped_column(Integer, default=0)
+    checks: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[Optional[int]] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    acknowledged_by: Mapped[Optional[int]] = mapped_column(Integer)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ack_note: Mapped[Optional[str]] = mapped_column(Text)

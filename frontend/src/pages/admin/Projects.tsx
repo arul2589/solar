@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, staffSession } from "../../api";
+import { useAdminI18n, type AKey } from "../../adminI18n";
 import { useRole } from "./AdminLayout";
+import { AnswerText, SourceList, type Source } from "./Knowledge";
 
-const STATUS: Record<string, string> = { planned: "Planned", in_progress: "In progress", net_metering: "Net metering", done: "Completed" };
+const STATUS_KEYS: Record<string, AKey> = { planned: "st_planned", in_progress: "st_in_progress", net_metering: "st_net_metering", done: "st_done" };
+const TABS: [string, AKey][] = [["checklist", "tab_checklist"], ["readings", "tab_readings"], ["photos", "tab_photos"],
+  ["materials", "tab_materials"], ["drawings", "tab_drawings"], ["explain", "tab_explain"], ["net metering", "tab_netmetering"]];
+const READING_KEYS: Record<string, AKey> = { voc: "rk_voc", isc: "rk_isc", earth_resistance: "rk_earth_resistance",
+  insulation: "rk_insulation", ac_voltage: "rk_ac_voltage", other: "rk_other" };
 
 export function Projects() {
+  const { at } = useAdminI18n();
   const [rows, setRows] = useState<any[]>([]);
   const [err, setErr] = useState("");
   useEffect(() => { api("/api/admin/projects").then(setRows).catch((e) => setErr(e.message)); }, []);
   return (
     <div>
-      <h1>Projects</h1>
+      <h1>{at("projects")}</h1>
       {err && <div className="err">{err}</div>}
-      {rows.length === 0 && <p className="muted">No projects yet. A project is created when a customer accepts a quotation.</p>}
+      {rows.length === 0 && <p className="muted">{at("no_projects")}</p>}
       {rows.map((p) => (
         <Link key={p.id} to={`/admin/projects/${p.id}`} className="card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
-          <strong>{p.reference}</strong> · {p.customer_name} <span className="pill">{STATUS[p.status]}</span> <span className="pill green">{p.progress}</span>
+          <strong>{p.reference}</strong> · {p.customer_name} <span className="pill">{at(STATUS_KEYS[p.status] || "st_planned")}</span> <span className="pill green">{p.progress}</span>
           <div className="muted small">{p.system_summary}</div>
           <div className="muted small">{p.address} {p.district}</div>
         </Link>
@@ -25,16 +32,20 @@ export function Projects() {
   );
 }
 
+type Explanation = { text: string; sources: Source[]; created_at: string };
+
 export function ProjectDetail() {
   const { id } = useParams();
   const role = useRole();
+  const { lang, at, tx } = useAdminI18n();
+  const ta = lang === "ta";
   const [d, setD] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [tab, setTab] = useState("checklist");
-  const [ta, setTa] = useState(false);
   const [rd, setRd] = useState<any>({ kind: "voc", label: "String 1", value: "" });
   const [err, setErr] = useState("");
   const [svgs, setSvgs] = useState<Record<string, string>>({});
+  const [exBusy, setExBusy] = useState(false);
   const manager = role !== "technician";
 
   const load = () => api(`/api/admin/projects/${id}`).then(setD).catch((e) => setErr(e.message));
@@ -66,35 +77,40 @@ export function ProjectDetail() {
     try { setD(await api(`/api/admin/projects/${id}`, { method: "PATCH", json: body })); } catch (e: any) { setErr(e.message); }
   };
   const openPdf = async () => {
-    const res = await fetch(`/api/admin/projects/${id}/pack.pdf`, { headers: { Authorization: `Bearer ${staffSession()?.token}` } });
+    const res = await fetch(`/api/admin/projects/${id}/pack.pdf?lang=${lang}`, { headers: { Authorization: `Bearer ${staffSession()?.token}` } });
     if (!res.ok) { setErr("PDF failed"); return; }
     window.open(URL.createObjectURL(await res.blob()), "_blank");
   };
+  const explain = async () => {
+    setExBusy(true); setErr("");
+    try { await api(`/api/admin/projects/${id}/explanation`, { method: "POST", json: { lang } }); await load(); }
+    catch (e: any) { setErr(e.message); } finally { setExBusy(false); }
+  };
 
-  if (!d) return <p>{err || "Loading..."}</p>;
+  if (!d) return <p>{err || at("loading")}</p>;
+  const ex: Explanation | undefined = d.pack?.explanation?.[lang];
   return (
     <div style={{ maxWidth: 900 }}>
-      <Link className="small" to="/admin/projects">← Projects</Link>
+      <Link className="small" to="/admin/projects">{at("back_projects")}</Link>
       <h1 style={{ margin: "4px 0" }}>{d.reference} · {d.customer_name}</h1>
       <p className="muted small">{d.system_summary}<br />{d.address} {d.district} · <a href={`tel:${d.customer_phone}`}>{d.customer_phone}</a></p>
       <div className="row" style={{ marginBottom: 10 }}>
-        <span className="pill blue" style={{ flex: "0 0 auto" }}>{STATUS[d.status]} · {d.progress}</span>
-        <button className="secondary small" style={{ flex: "0 0 auto" }} onClick={openPdf}>Project pack PDF</button>
-        <button className="ghost small" style={{ flex: "0 0 auto" }} onClick={() => setTa(!ta)}>{ta ? "English" : "தமிழ்"}</button>
+        <span className="pill blue" style={{ flex: "0 0 auto" }}>{at(STATUS_KEYS[d.status] || "st_planned")} · {d.progress}</span>
+        <button className="secondary small" style={{ flex: "0 0 auto" }} onClick={openPdf}>{at("pack_pdf")}</button>
         {manager && (<>
           <select style={{ flex: "0 0 200px" }} value={d.technician_user_id || ""} onChange={(e) => patch({ technician_user_id: Number(e.target.value) || 0 })}>
-            <option value="">Assign technician...</option>
+            <option value="">{at("assign_tech")}</option>
             {users.filter((u) => u.active).map((u) => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
           </select>
           <select style={{ flex: "0 0 170px" }} value={d.status} onChange={(e) => patch({ status: e.target.value })}>
-            {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(STATUS_KEYS).map(([k, v]) => <option key={k} value={k}>{at(v)}</option>)}
           </select>
-          <Link className="btn small secondary" style={{ flex: "0 0 auto" }} to={`/admin/requests/${d.request_id}`}>Request</Link>
+          <Link className="btn small secondary" style={{ flex: "0 0 auto" }} to={`/admin/requests/${d.request_id}`}>{at("request")}</Link>
         </>)}
       </div>
       {err && <div className="err">{err}</div>}
       <div className="tabs">
-        {["checklist", "readings", "photos", "materials", "drawings", "net metering"].map((t) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{t[0].toUpperCase() + t.slice(1)}</button>)}
+        {TABS.map(([t, k]) => <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{at(k)}</button>)}
       </div>
 
       {tab === "checklist" && d.checklist.map((item: any) => (
@@ -106,36 +122,37 @@ export function ProjectDetail() {
           <div style={{ marginLeft: 30 }}>
             {item.points.map((pt: any, i: number) => (
               <label key={i} className="inline" style={{ margin: "6px 0" }}>
-                <input type="checkbox" style={{ width: 18, height: 18 }} checked={pt.done} onChange={() => togglePoint(item, i)} /> <span>{pt.text}</span>
+                <input type="checkbox" style={{ width: 18, height: 18 }} checked={pt.done} onChange={() => togglePoint(item, i)} /> <span>{tx(pt.text)}</span>
               </label>
             ))}
-            <input placeholder="Notes" defaultValue={item.notes} onBlur={(e) => e.target.value !== item.notes && patchItem(item, { notes: e.target.value })} />
+            <input placeholder={at("notes")} defaultValue={item.notes} onBlur={(e) => e.target.value !== item.notes && patchItem(item, { notes: e.target.value })} />
           </div>
         </div>
       ))}
 
       {tab === "readings" && (
         <div className="card">
-          <h2>Test readings</h2>
-          <p className="muted small">Expected max string Voc (cold design): {d.pack.expected?.string_voc_cold_max ?? "-"} V · earth resistance &lt; 5 Ω per pit.</p>
+          <h2>{at("readings_title")}</h2>
+          <p className="muted small">{at("readings_expected", { v: d.pack.expected?.string_voc_cold_max ?? "-" })}</p>
           <div className="row">
-            <div><label>Test</label><select value={rd.kind} onChange={(e) => setRd({ ...rd, kind: e.target.value })}>
-              <option value="voc">Voc (V)</option><option value="isc">Isc (A)</option><option value="earth_resistance">Earth resistance (Ω)</option>
-              <option value="insulation">Insulation (MΩ)</option><option value="ac_voltage">AC voltage (V)</option><option value="other">Other</option></select></div>
-            <div><label>Label</label><input value={rd.label} onChange={(e) => setRd({ ...rd, label: e.target.value })} placeholder="String 1 / Pit 2" /></div>
-            <div><label>Value</label><input value={rd.value} onChange={(e) => setRd({ ...rd, value: e.target.value })} inputMode="decimal" /></div>
-            <button style={{ flex: "0 0 auto" }} disabled={rd.value === ""} onClick={addReading}>Save</button>
+            <div><label>{at("test")}</label><select value={rd.kind} onChange={(e) => setRd({ ...rd, kind: e.target.value })}>
+              {Object.entries(READING_KEYS).map(([k, v]) => <option key={k} value={k}>{at(v)}</option>)}</select></div>
+            <div><label>{at("label")}</label><input value={rd.label} onChange={(e) => setRd({ ...rd, label: e.target.value })} placeholder="String 1 / Pit 2" /></div>
+            <div><label>{at("value")}</label><input value={rd.value} onChange={(e) => setRd({ ...rd, value: e.target.value })} inputMode="decimal" /></div>
+            <button style={{ flex: "0 0 auto" }} disabled={rd.value === ""} onClick={addReading}>{at("save")}</button>
           </div>
-          <table style={{ marginTop: 12 }}><thead><tr><th>Test</th><th>Label</th><th className="num">Value</th><th>Expected</th><th>Result</th></tr></thead>
-            <tbody>{d.readings.map((r: any) => (
-              <tr key={r.id}><td>{r.kind}</td><td>{r.label}</td><td className="num">{r.value} {r.unit}</td><td>{r.expected || "-"}</td>
-                <td>{r.ok === null ? "-" : r.ok ? <span className="pill green">OK</span> : <span className="pill red">CHECK</span>}</td></tr>))}</tbody></table>
+          <div className="table-wrap">
+            <table style={{ marginTop: 12 }}><thead><tr><th>{at("test")}</th><th>{at("label")}</th><th className="num">{at("value")}</th><th>{at("expected")}</th><th>{at("result")}</th></tr></thead>
+              <tbody>{d.readings.map((r: any) => (
+                <tr key={r.id}><td>{READING_KEYS[r.kind] ? at(READING_KEYS[r.kind]) : r.kind}</td><td>{r.label}</td><td className="num">{r.value} {r.unit}</td><td>{r.expected || "-"}</td>
+                  <td>{r.ok === null ? "-" : r.ok ? <span className="pill green">{at("ok")}</span> : <span className="pill red">{at("check")}</span>}</td></tr>))}</tbody></table>
+          </div>
         </div>
       )}
 
       {tab === "photos" && (
         <div className="card">
-          <h2>Site photos</h2>
+          <h2>{at("photos_title")}</h2>
           <input type="file" accept="image/*" capture="environment" onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
           <div className="photos" style={{ marginTop: 10 }}>{d.photos.map((p: any) => <a key={p.id} href={p.url} target="_blank" rel="noreferrer"><img src={p.url} alt="" /></a>)}</div>
         </div>
@@ -143,19 +160,42 @@ export function ProjectDetail() {
 
       {tab === "materials" && (
         <>
-          <div className="card"><h2>Bill of materials</h2>
+          <div className="card"><h2>{at("bom")}</h2>
             <table><tbody>{d.pack.bom.map((l: any, i: number) => <tr key={i}><td>{l.description}<div className="muted small">{l.details}</div></td><td className="num">{Number(l.qty)} {l.unit}</td></tr>)}</tbody></table></div>
-          <div className="card"><h2>String plan</h2>{d.pack.strings.map((s: any, i: number) => <div key={i}>String {i + 1}: {s.modules} modules · {s.inverter ? `inverter ${s.inverter} · ` : ""}MPPT {s.mppt}</div>)}</div>
-          <div className="card"><h2>Tools</h2><ul>{d.pack.tools.map((t: string) => <li key={t}>{t}</li>)}</ul></div>
+          <div className="card"><h2>{at("string_plan")}</h2>{d.pack.strings.map((s: any, i: number) => (
+            <div key={i}>{at("string_line", { n: i + 1, m: s.modules, mppt: s.mppt, inv: s.inverter ? at("inverter_n", { i: s.inverter }) : "" })}</div>))}</div>
+          <div className="card"><h2>{at("tools")}</h2><ul>{d.pack.tools.map((t: string) => <li key={t}>{tx(t)}</li>)}</ul></div>
         </>
       )}
 
-      {tab === "drawings" && ["wiring", "sld", "roof", "schedule"].map((k) => (
-        <div className="card" key={k}><div className="svgbox" dangerouslySetInnerHTML={{ __html: svgs[k] || "Loading..." }} /></div>
-      ))}
+      {tab === "drawings" && (
+        <>
+          {ta && <p className="muted small">{at("drawings_note")}</p>}
+          {["wiring", "sld", "roof", "schedule"].map((k) => (
+            <div className="card" key={k}><div className="svgbox" dangerouslySetInnerHTML={{ __html: svgs[k] || at("loading") }} /></div>
+          ))}
+        </>
+      )}
+
+      {tab === "explain" && (
+        <div className="card">
+          <div className="topbar" style={{ marginBottom: 6 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>{at("explain_title")}</h2>
+              <p className="muted small" style={{ margin: "4px 0 0" }}>{at("explain_lead")}</p>
+            </div>
+            {manager && <button disabled={exBusy} onClick={explain}>{exBusy ? at("explain_working") : ex ? at("explain_again") : at("explain_make")}</button>}
+          </div>
+          {ex ? (<>
+            <div className="muted small">{fmtDate(ex.created_at)}</div>
+            <AnswerText text={ex.text} sources={ex.sources} />
+            <SourceList sources={ex.sources} />
+          </>) : <p className="muted">{at("explain_none")}</p>}
+        </div>
+      )}
 
       {tab === "net metering" && (
-        <div className="card"><h2>TANGEDCO net-metering documents</h2><ul>{d.pack.net_metering_docs.map((t: string) => <li key={t}>{t}</li>)}</ul></div>
+        <div className="card"><h2>{at("nm_docs")}</h2><ul>{d.pack.net_metering_docs.map((t: string) => <li key={t}>{tx(t)}</li>)}</ul></div>
       )}
     </div>
   );
