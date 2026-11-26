@@ -163,3 +163,20 @@ def test_pending_documents_wait_for_key(client, alpha_admin, database):
     assert kb.process_pending(database["alpha"]) == 0          # no OPENAI_API_KEY in tests
     docs = client.get("/api/admin/kb/documents", headers=alpha_admin).json()["items"]
     assert next(d for d in docs if d["filename"] == "Later.pdf")["status"] == "pending"
+
+
+def test_hybrid_search_finds_exact_terms(client, alpha_admin, database):
+    """Keyword (BM25) half of the hybrid search finds exact codes even when embeddings give no signal."""
+    class FlatAI(FakeAI):
+        def embed(self, texts):
+            return [[1.0] * DIM for _ in texts]          # every passage looks the same to the embedding
+    ai = FlatAI()
+    _upload(client, alpha_admin, [
+        ("Tariff.pdf", text_pdf("Domestic tariff code LA1A applies to homes. Slab rates per unit. " * 6), "application/pdf"),
+        ("Cables.pdf", text_pdf("Use 6 sq.mm DC cable for string runs above 30 metres. " * 6), "application/pdf")])
+    kb.process_pending(database["alpha"], client=ai)
+    from app.db import session_scope
+    with session_scope(database["alpha"]) as db:
+        assert kb.search(db, "LA1A", ai, k=1)[0].title == "Tariff"
+        assert kb.search(db, "6mm2 cable", ai, k=1)[0].title == "Cables"     # unit spellings unified
+    assert kb._tokens("LA1A 20A 6 sq mm 3kWp") == ["la1a", "20", "6", "mm2", "3", "kw"]

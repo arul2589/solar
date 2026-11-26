@@ -241,7 +241,28 @@ _CACHE: dict[int, tuple[tuple, list]] = {}
 _CACHE_LOCK = threading.Lock()
 
 
-def _load(db: Session) -> list:
+@dataclass
+class _Index:
+    items: list            # (chunk_id, doc_id, title, page, text, vector, norm, term_counts, length)
+    df: dict               # term -> number of chunks containing it
+    avg_len: float
+
+
+_WORD = re.compile(r"[\w\u0B80-\u0BFF]+", re.UNICODE)
+_UNIT_FIXES = [(re.compile(r"\b(\d+(?:\.\d+)?)\s*(?:sq\.?\s*mm|mm²|mm2|sqmm)", re.I), r"\1 mm2"),
+               (re.compile(r"\b(\d+(?:\.\d+)?)\s*kwp?\b", re.I), r"\1 kw"),
+               (re.compile(r"\b(\d+(?:\.\d+)?)\s*(a|v|w)\b", re.I), r"\1 \2")]
+
+
+def _tokens(text: str) -> list[str]:
+    """Lower-case word tokens (English, Tamil, numbers) with common unit spellings unified."""
+    t = text.lower()
+    for rx, rep in _UNIT_FIXES:
+        t = rx.sub(rep, t)
+    return [w for w in _WORD.findall(t) if len(w) > 1 or w.isdigit()]
+
+
+def _load(db: Session) -> _Index:
     iid = db.info["installer_id"]
     sig = tuple(db.execute(select(func.count(KbChunk.id), func.max(KbChunk.id))).one())
     with _CACHE_LOCK:
@@ -251,42 +272,67 @@ def _load(db: Session) -> list:
     rows = db.execute(select(KbChunk.id, KbChunk.document_id, KbDocument.title, KbChunk.page, KbChunk.text,
                              KbChunk.embedding).join(KbDocument, KbDocument.id == KbChunk.document_id)
                       .where(KbDocument.status == "ready")).all()
-    items = []
+    items, df = [], {}
     for r in rows:
         vec = r.embedding or []
         norm = math.sqrt(sum(x * x for x in vec)) or 1.0
-        items.append((r.id, r.document_id, r.title, r.page, r.text, vec, norm))
+        toks = _tokens(f"{r.title} {r.text}")
+        counts: dict[str, int] = {}
+        for w in toks:
+            counts[w] = counts.get(w, 0) + 1
+        for w in counts:
+            df[w] = df.get(w, 0) + 1
+        items.append((r.id, r.document_id, r.title, r.page, r.text, vec, norm, counts, len(toks)))
+    idx = _Index(items, df, (sum(i[8] for i in items) / len(items)) if items else 1.0)
     with _CACHE_LOCK:
-        _CACHE[iid] = (sig, items)
-    return items
+        _CACHE[iid] = (sig, idx)
+    return idx
 
 
-_WORD = re.compile(r"[\w஀-௿]+", re.UNICODE)
+def _bm25(idx: _Index, query: str, k1: float = 1.4, b: float = 0.75) -> dict[int, float]:
+    """Keyword relevance per chunk position (classic BM25)."""
+    n = len(idx.items)
+    q = set(_tokens(query))
+    scores: dict[int, float] = {}
+    for t in q:
+        dfreq = idx.df.get(t)
+        if not dfreq:
+            continue
+        idf = math.log(1 + (n - dfreq + 0.5) / (dfreq + 0.5))
+        for pos, it in enumerate(idx.items):
+            tf = it[7].get(t)
+            if tf:
+                scores[pos] = scores.get(pos, 0.0) + idf * tf * (k1 + 1) / (tf + k1 * (1 - b + b * it[8] / idx.avg_len))
+    return scores
+
+
+RRF_K = 60       # reciprocal rank fusion constant
 
 
 def search(db: Session, query: str, client: Any, k: int = 8) -> list[Hit]:
-    items = _load(db)
-    if not items:
+    """Hybrid search: meaning (embeddings) + exact words (BM25), merged by reciprocal rank fusion.
+    Exact terms such as 'LA1A', 'Form-2', '6 mm2', 'CEIG' or Tamil words are found even when the
+    embedding alone ranks them low; paraphrased questions still match through the embeddings."""
+    idx = _load(db)
+    if not idx.items:
         return []
     qv = client.embed([query])[0]
     qn = math.sqrt(sum(x * x for x in qv)) or 1.0
-    terms = {w.lower() for w in _WORD.findall(query) if len(w) > 2}
-    scored = []
-    for cid, did, title, page, text, vec, norm in items:
-        if len(vec) != len(qv):
-            continue
-        cos = sum(a * b for a, b in zip(qv, vec)) / (qn * norm)
-        low = text.lower()
-        kw = (sum(1 for t in terms if t in low) / len(terms)) if terms else 0.0
-        scored.append((cos + 0.15 * kw, cid, did, title, page, text))
-    scored.sort(reverse=True)
+    cos = {pos: sum(a * b for a, b in zip(qv, it[5])) / (qn * it[6])
+           for pos, it in enumerate(idx.items) if len(it[5]) == len(qv)}
+    kw = _bm25(idx, query)
+    fused: dict[int, float] = {}
+    for ranking in (sorted(cos, key=cos.get, reverse=True), sorted(kw, key=kw.get, reverse=True)):
+        for rank, pos in enumerate(ranking[:200]):
+            fused[pos] = fused.get(pos, 0.0) + 1.0 / (RRF_K + rank + 1)
     hits, per_page = [], {}
-    for s, cid, did, title, page, text in scored:
+    for pos in sorted(fused, key=fused.get, reverse=True):
+        cid, did, title, page, text = idx.items[pos][:5]
         key = (did, page)
         if per_page.get(key, 0) >= 2:
             continue
         per_page[key] = per_page.get(key, 0) + 1
-        hits.append(Hit(cid, did, title, page, text, round(s, 4)))
+        hits.append(Hit(cid, did, title, page, text, round(fused[pos] * 1000, 3)))
         if len(hits) >= k:
             break
     return hits

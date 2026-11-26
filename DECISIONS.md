@@ -106,3 +106,5 @@ Known / accepted for now:
 - Documents reach the numbers only through settings the admin applies (with references and range checks);
   the engine stays the single source of every number in diagrams and quotations.
 - Send gate is skipped when no OpenAI key or no indexed documents (nothing to check against).
+- Knowledge search is hybrid: embeddings + BM25 keyword ranking merged by reciprocal rank fusion (k=60), computed in
+  Python from the stored passages (no extra service). Unit spellings (6 sq mm / 6mm² / 6mm2, 3 kWp, 20A) are unified.

@@ -13,6 +13,7 @@ from ..config import get_config
 from ..deps import Principal, public_db, require_roles, staff_db
 from ..models import AnalysisRun, Installer, Quotation, ServiceRequest
 from ..security import MARGIN_ROLES
+from ..services import activity
 from ..services import quotations as qs
 from ..services import storage
 from ..services.requests import find_by_status_token

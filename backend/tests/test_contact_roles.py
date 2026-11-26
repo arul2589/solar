@@ -53,9 +53,9 @@ def test_both_channels(client, alpha_admin):
 
 def test_normal_role_sees_no_customer_details(client, alpha_admin):
     r = client.post("/api/admin/users", headers=alpha_admin, json={
-        "email": "viewer@alpha.test", "name": "Viewer", "role": "normal", "password": PASSWORD, "active": True})
+        "email": "viewer@example.com", "name": "Viewer", "role": "normal", "password": PASSWORD, "active": True})
     assert r.status_code in (200, 201), r.text
-    viewer = login(client, "alpha", "viewer@alpha.test")
+    viewer = login(client, "alpha", "viewer@example.com")
     ref = submit(client, phone="9111100007", name="Secret Person", email="secret@example.com",
                  address="99 Private Lane", eb_consumer_no="0123456789").json()["reference"]
     rid = _rid(client, alpha_admin, ref)
