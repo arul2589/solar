@@ -17,6 +17,8 @@ export const useInstaller = () => useContext(Ctx);
 // Marketing pages use the full-width site layout; forms and status pages stay narrow.
 const MARKETING = /^\/s\/[^/]+\/?(residential|commercial|industrial|products|calculator|how-it-works|projects)?\/?$/;
 const ABOUT = /^\/s\/[^/]+\/about\/?$/;
+// hover-to-open only for the desktop menu; on phones/tablets a tap toggles it
+const canHover = () => window.matchMedia("(hover: hover) and (min-width: 1101px)").matches;
 
 export default function PublicLayout() {
   const { slug } = useParams();
@@ -70,9 +72,9 @@ export default function PublicLayout() {
 
           <nav className={`site-nav${menu ? " open" : ""}`} aria-label="Main">
             <NavLink end to={base}>{oldNav.home}</NavLink>
-            <div className={`dd${solOpen ? " open" : ""}`} onMouseLeave={() => setSolOpen(false)}>
+            <div className={`dd${solOpen ? " open" : ""}`} onMouseLeave={() => { if (canHover()) setSolOpen(false); }}>
               <button className={`dd-btn${solActive ? " active" : ""}`} aria-expanded={solOpen}
-                onClick={() => setSolOpen(!solOpen)} onMouseEnter={() => setSolOpen(true)}>
+                onClick={() => setSolOpen(!solOpen)} onMouseEnter={() => { if (canHover()) setSolOpen(true); }}>
                 {n.solutions} <Icon name="chevron" size={16} />
               </button>
               <div className="dd-menu">
