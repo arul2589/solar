@@ -23,6 +23,18 @@ export async function openDocument(id: number, page?: number) {
   if (w) w.location.href = url; else window.open(url, "_blank");
 }
 
+/** Turn LaTeX-style formulas into readable plain text (models sometimes ignore the instruction). */
+export function plainMath(text: string): string {
+  let t = text.replace(/\\\[|\\\]|\\\(|\\\)/g, "").replace(/\$\$/g, "");
+  for (let i = 0; i < 4; i++) {
+    t = t.replace(/\\(?:d|t)?frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1) / ($2)")
+         .replace(/\\(?:text|mathrm|mathbf|textbf|operatorname)\{([^{}]*)\}/g, "$1");
+  }
+  return t.replace(/\\times/g, "×").replace(/\\cdot/g, "·").replace(/\\approx/g, "≈").replace(/\\le(q)?/g, "≤")
+    .replace(/\\ge(q)?/g, "≥").replace(/\\%/g, "%").replace(/\\,|\\;|\\!/g, " ").replace(/\\([a-zA-Z]+)/g, "$1")
+    .replace(/[{}]/g, "").replace(/ {2,}/g, " ");
+}
+
 /** Minimal, safe renderer for model answers: headings, bullets, **bold** and [n] citations. */
 export function AnswerText({ text, sources }: { text: string; sources: Source[] }) {
   const byN = new Map(sources.map((s) => [s.n, s]));
@@ -50,7 +62,7 @@ export function AnswerText({ text, sources }: { text: string; sources: Source[] 
   const out: ReactNode[] = [];
   let list: ReactNode[] = [];
   const flush = () => { if (list.length) { out.push(<ul key={`u${out.length}`}>{list}</ul>); list = []; } };
-  text.split("\n").forEach((raw, i) => {
+  plainMath(text).split("\n").forEach((raw, i) => {
     const line = raw.trimEnd();
     const bullet = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
     const head = line.match(/^#{1,4}\s+(.*)$/);

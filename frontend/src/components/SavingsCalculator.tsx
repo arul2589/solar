@@ -1,6 +1,6 @@
 // Website savings calculator. Calls POST /api/public/{slug}/estimate, which runs the real
 // engine with this installer's settings and returns size + savings only (never a price).
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useI18n } from "../i18n";
@@ -30,7 +30,12 @@ export default function SavingsCalculator({ defaultType = "home", compact = fals
   const { lang } = useI18n();
   const c = site[lang].calc;
   const [mode, setMode] = useState<"bill" | "units">("bill");
-  const [value, setValue] = useState(defaultType === "home" ? "4000" : defaultType === "commercial" ? "40000" : "250000");
+  const defaults = (t: SiteType, m: "bill" | "units") =>
+    m === "bill" ? (t === "home" ? "4000" : t === "commercial" ? "40000" : "250000")
+                 : (t === "home" ? "400" : t === "commercial" ? "4000" : "25000");
+  const [value, setValue] = useState(defaults(defaultType, "bill"));
+  const outRef = useRef<HTMLDivElement>(null);
+  const switchMode = (m: "bill" | "units") => { if (m !== mode) { setMode(m); setValue(defaults(siteType, m)); } };
   const [siteType, setSiteType] = useState<SiteType>(defaultType);
   const [phase, setPhase] = useState<1 | 3>(defaultType === "home" ? 1 : 3);
   const [goal, setGoal] = useState<"reduce_bill" | "backup">("reduce_bill");
@@ -49,6 +54,10 @@ export default function SavingsCalculator({ defaultType = "home", compact = fals
       const r = await api<Estimate>(`/api/public/${slug}/estimate`, { method: "POST", json: body });
       setRes(r);
       if (!r.ok) setErr(c.error);
+      // on phones the result card is below the form: bring it into view
+      if (window.matchMedia("(max-width: 860px)").matches) {
+        setTimeout(() => outRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      }
     } catch {
       setErr(c.error);
       setRes(null);
@@ -71,8 +80,8 @@ export default function SavingsCalculator({ defaultType = "home", compact = fals
           </div>
         </div>
         <div className="seg-toggle" role="group">
-          <button type="button" className={mode === "bill" ? "on" : ""} onClick={() => setMode("bill")}>{c.byBill}</button>
-          <button type="button" className={mode === "units" ? "on" : ""} onClick={() => setMode("units")}>{c.byUnits}</button>
+          <button type="button" className={mode === "bill" ? "on" : ""} onClick={() => switchMode("bill")}>{c.byBill}</button>
+          <button type="button" className={mode === "units" ? "on" : ""} onClick={() => switchMode("units")}>{c.byUnits}</button>
         </div>
         <div className="calc-grid">
           <label>
@@ -105,7 +114,7 @@ export default function SavingsCalculator({ defaultType = "home", compact = fals
         <button className="btn btn-sun" disabled={busy}>{busy ? c.working : c.submit}</button>
       </form>
 
-      <div className="calc-out" aria-live="polite">
+      <div className="calc-out" aria-live="polite" ref={outRef} style={{ scrollMarginTop: 72 }}>
         <div className="calc-out-head"><Icon name="leaf" /> <h3>{c.resultsTitle}</h3></div>
         {err && <div className="err">{err}</div>}
         {!s && !err && <p className="muted">{c.emptyHint}</p>}

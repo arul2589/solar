@@ -52,7 +52,8 @@ SYSTEM_ANSWER = (
     "brackets, e.g. [2]. If the excerpts do not contain the answer, say clearly that the documents do not cover "
     "it - never guess numbers, cable sizes, ratings or rules. Show formulas and a worked example when the "
     "excerpts give one. Keep answers short and practical. If excerpts disagree, say so and cite both. Answer in "
-    "the language of the question (English or Tamil)."
+    "the language of the question (English or Tamil). Write formulas as plain text such as 'Battery Ah = (Load W x "
+    "Backup hours) / (Battery V x Efficiency)' - never use LaTeX, \\frac, \\text or \\[ \\] markup."
 )
 
 SYSTEM_NOTES = (
@@ -61,7 +62,8 @@ SYSTEM_NOTES = (
     "For each topic give: what the design has, what the reference documents say (with [n] citations), and a "
     "verdict: OK, CHECK (needs site confirmation) or CONFLICT (documents suggest something different). "
     "Never change or recalculate the engine's numbers yourself and never invent values; if the documents say "
-    "nothing on a topic, write 'Not covered by the documents'. Use short headings and bullet points."
+    "nothing on a topic, write 'Not covered by the documents'. Use short headings and bullet points. Write formulas "
+    "as plain text, never LaTeX."
 )
 
 
@@ -193,7 +195,7 @@ def process_pending(installer_id: int, client: Any = None, limit: int = 5) -> in
         if not get_config().openai_api_key:
             return 0          # not configured yet: leave documents pending until OPENAI_API_KEY is set
     with session_scope(installer_id) as db:
-        stale = utcnow() - timedelta(minutes=30)
+        stale = utcnow() - timedelta(minutes=15)
         db.execute(update(KbDocument).where(KbDocument.status == "processing", KbDocument.updated_at < stale)
                    .values(status="pending"))
         ids = list(db.scalars(select(KbDocument.id).where(KbDocument.status == "pending")
