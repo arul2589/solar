@@ -64,3 +64,13 @@ docker compose -p solar run --rm --no-deps -v "$PWD/backend:/app" api python scr
 
 ## Next
 Owner to review Settings → Placeholders and confirm each value; then deploy (set `.env` from `.env.example`, `SITE_ADDRESS=solar.<domain>`, point DNS, `docker compose -p solar up -d --build`). Phase 4 after that.
+
+## Update 2026-11-26: Home and About pages (added outside Claude Code)
+Changed only in `frontend/src` (no backend changes). Built with `npm run build` and checked in desktop, mobile and Tamil.
+- New: `src/content.ts` (all Home/About copy in English + Tamil; edit text here), `src/components/SolarFlow.tsx` (sun -> panels -> inverter -> building -> grid illustration), `src/pages/public/About.tsx`.
+- Rewritten: `src/pages/public/Landing.tsx` (hero, what is solar, benefits, system types, who it is for, savings factors, how it works, FAQ, CTA, contact). It also exports `IconCards`, which About reuses.
+- Edited: `src/pages/public/PublicLayout.tsx` (header nav Home / About us / Get a quotation, wide layout only for Home and About, footer links), `src/App.tsx` (route `/s/:slug/about`), `src/styles.css` (new styles appended at the end; language buttons now side by side).
+- About text is generic: it names no years of experience, installation counts or certifications. The owner should add real company facts in `content.ts`.
+- Tamil text for these pages has not been reviewed by a native speaker.
+- To see it: `docker compose -p solar up -d --build web`, then open http://localhost:8088/s/demo and /s/demo/about.
+- Please do not revert these files. Keep the existing i18n for the request form and status pages.

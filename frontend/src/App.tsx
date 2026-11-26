@@ -8,6 +8,7 @@ import Pipeline from "./pages/admin/Pipeline";
 import RequestDetail from "./pages/admin/RequestDetail";
 import Settings from "./pages/admin/Settings";
 import CustomerLogin from "./pages/public/CustomerLogin";
+import About from "./pages/public/About";
 import Landing from "./pages/public/Landing";
 import PublicLayout from "./pages/public/PublicLayout";
 import RequestForm from "./pages/public/RequestForm";
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/" element={<Navigate to={`/s/${defaultSlug()}`} replace />} />
       <Route path="/s/:slug" element={<PublicLayout />}>
         <Route index element={<Landing />} />
+        <Route path="about" element={<About />} />
         <Route path="request" element={<RequestForm />} />
         <Route path="status/:reference" element={<Status />} />
         <Route path="login" element={<CustomerLogin />} />
