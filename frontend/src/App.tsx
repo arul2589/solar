@@ -10,6 +10,11 @@ import Settings from "./pages/admin/Settings";
 import CustomerLogin from "./pages/public/CustomerLogin";
 import About from "./pages/public/About";
 import Landing from "./pages/public/Landing";
+import CalculatorPage from "./pages/public/CalculatorPage";
+import HowItWorks from "./pages/public/HowItWorks";
+import Products from "./pages/public/Products";
+import Projects from "./pages/public/Projects";
+import SolutionPage from "./pages/public/SolutionPage";
 import PublicLayout from "./pages/public/PublicLayout";
 import RequestForm from "./pages/public/RequestForm";
 import Status from "./pages/public/Status";
@@ -22,6 +27,13 @@ export default function App() {
       <Route path="/s/:slug" element={<PublicLayout />}>
         <Route index element={<Landing />} />
         <Route path="about" element={<About />} />
+        <Route path="residential" element={<SolutionPage kind="residential" />} />
+        <Route path="commercial" element={<SolutionPage kind="commercial" />} />
+        <Route path="industrial" element={<SolutionPage kind="industrial" />} />
+        <Route path="products" element={<Products />} />
+        <Route path="calculator" element={<CalculatorPage />} />
+        <Route path="how-it-works" element={<HowItWorks />} />
+        <Route path="projects" element={<Projects />} />
         <Route path="request" element={<RequestForm />} />
         <Route path="status/:reference" element={<Status />} />
         <Route path="login" element={<CustomerLogin />} />

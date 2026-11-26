@@ -76,3 +76,20 @@ Changed only in `frontend/src` (no backend changes). Built with `npm run build` 
 - Tamil text for these pages has not been reviewed by a native speaker.
 - To see it: `docker compose -p solar up -d --build web`, then open http://localhost:8088/s/demo and /s/demo/about.
 - Please do not revert these files. Keep the existing i18n for the request form and status pages.
+
+## Update 2026-11-26 (evening): full marketing site — 8 public pages
+Theme changed to navy + sun-gold for the public site only (`.site-root` scope; admin unchanged).
+- Pages (EN/TA): Home (redesigned: hero, solution cards, savings calculator, steps, benefits, recent projects, FAQ, CTA),
+  `/residential`, `/commercial`, `/industrial` (one `SolutionPage` component), `/products` (on-grid/hybrid/off-grid,
+  components, comparison table), `/calculator`, `/how-it-works` (animated roadmap + solar flow), `/projects` (filterable gallery).
+- New header with Solutions dropdown, mobile menu, phone pill and CTA; new 4-column footer. About / request / status pages
+  keep their layout inside the new shell and pick up the navy theme through the shared CSS variables.
+- Copy: `frontend/src/siteContent.ts` (all new text, EN + TA). Styles: `frontend/src/site.css`. Icons: `components/Icon.tsx`.
+- Images: `frontend/public/img/` (residential, commercial, industrial, hybrid-battery).
+- Savings calculator: new backend endpoint `POST /api/public/{slug}/estimate` (`app/services/estimate.py`). It runs the
+  normal engine with the installer's own settings and returns size, roof area, generation and a savings range only;
+  cost, price lines and payback are stripped (tests in `tests/test_public_estimate.py`).
+- Projects: entries in `siteContent.ts` → `projects.items`. The four entries there are `sample: true` and show only in
+  `npm run dev`; the live build hides them until real projects are added.
+- Checked: `tsc` passes; pages rendered server-side and screenshotted at desktop and mobile widths.
+  Not yet run: `vite build` and the backend tests (run them in Docker, see "Tests" above).

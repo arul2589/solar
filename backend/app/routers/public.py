@@ -338,3 +338,29 @@ def my_requests(p: Principal = Depends(get_customer), db: Session = Depends(cust
         st |= {"id": r.id, "status_token": status_token(r), "quotation_available": q is not None, "address": r.site.address}
         out.append(st)
     return out
+
+
+# ------------------------------------------------------------------ website savings calculator
+class EstimateIn(BaseModel):
+    monthly_bill: Optional[float] = Field(default=None, gt=0, le=100_000_000)
+    monthly_units: Optional[float] = Field(default=None, gt=0, le=10_000_000)
+    site_type: Literal["home", "commercial", "industry"] = "home"
+    phase: Literal[1, 3] = 1
+    goal: Literal["reduce_bill", "backup"] = "reduce_bill"
+
+
+@router.post("/estimate")
+def estimate(body: EstimateIn, request: Request, db: Session = Depends(public_db)):
+    """Indicative size and savings for the public calculator. Never returns a price."""
+    from ..services.analysis import run_engine
+    from ..services.estimate import shape_public_estimate
+
+    if not body.monthly_bill and not body.monthly_units:
+        raise HTTPException(422, "Enter your monthly bill or monthly units")
+    ip = request.client.host if request.client else "?"
+    if not allow(f"estimate:{ip}", 60):
+        raise HTTPException(429, "Too many attempts. Try again later.")
+    category = {"home": "domestic", "commercial": "commercial", "industry": "industrial"}[body.site_type]
+    out, _ = run_engine(db, {"monthly_bill": body.monthly_bill, "monthly_units": body.monthly_units,
+                             "phase": body.phase, "category": category, "goal": body.goal})
+    return shape_public_estimate(out)

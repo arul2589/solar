@@ -57,3 +57,12 @@ Other design defaults (editable in Settings → Calculation, not flagged): tilt 
 - **Local development** runs in Docker: this Windows machine's Application Control policy blocks native Python extension DLLs in a local virtualenv, so tests run in the API container.
 - **Tamil text** was written by me; a native speaker should review the UI strings (`frontend/src/i18n.tsx`) and email templates (Settings → Templates) before launch. The same applies to the Home/About copy in `frontend/src/content.ts`.
 - **Home/About copy** (`frontend/src/content.ts`) is generic marketing text shared by all installers: it makes no claims about years in business, installation counts or certifications. Per-installer editable page copy is a possible later feature. The "9 to 10 sq m per kW" roof guide matches the default `roof_recommended_m2_per_kw` (9.5).
+
+## 2026-11-26 marketing pages
+- The calculator and the Residential/Commercial pages show **no installation cost, price range or payback**, even though
+  the reference designs did, because CLAUDE.md says customers never see a price automatically. The pages show
+  savings and say the price comes from the engineer. To change this, the owner must decide; the engine already has `cost.range_low/high`.
+- No testimonials, installation counts, MW totals or "years of experience" were added (the reference design had them);
+  the owner should add only real, verifiable facts.
+- Typical size bands on the solution pages (e.g. "2 – 3 kW for ~150–350 units") are generic guidance text, not calculation inputs.
+- Images with other companies' logos (uniforms, vests, shirts) from the reference set were not used.

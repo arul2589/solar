@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import SolarFlow from "../../components/SolarFlow";
+import Icon from "../../components/Icon";
+import SavingsCalculator from "../../components/SavingsCalculator";
+import { CtaBand, Faq, FeatureGrid, Reveal, SectionHead } from "../../components/Site";
 import { content } from "../../content";
 import { useI18n } from "../../i18n";
-import { useInstaller } from "./PublicLayout";
+import { site, visibleProjects } from "../../siteContent";
+import { ProjectCard } from "./Projects";
 
+// Kept for the About page.
 export function IconCards({ items }: { items: { icon?: string; title: string; text: string }[] }) {
   return (
     <div className="cards">
@@ -19,106 +23,96 @@ export function IconCards({ items }: { items: { icon?: string; title: string; te
   );
 }
 
+const BENEFIT_ICONS = ["rupee", "meter", "wrench", "chart", "leaf", "battery"];
+
 export default function Landing() {
   const { slug } = useParams();
-  const { t, lang } = useI18n();
-  const info = useInstaller();
-  const c = content[lang].home;
-  const nav = content[lang].nav;
-  const [open, setOpen] = useState<number | null>(0);
+  const { lang } = useI18n();
+  const s = site[lang];
+  const h = s.home;
+  const old = content[lang].home;
+  const projects = visibleProjects(s.projects.items).slice(0, 3);
+  const base = `/s/${slug}`;
 
   return (
     <>
-      <section className="hero hero-lg">
-        <div className="small" style={{ opacity: 0.9 }}>{t("brand_tag")}</div>
-        <h1>{t("hero_title")}</h1>
-        <p>{t("hero_text")}</p>
-        <div className="hero-actions">
-          <Link className="btn" to={`/s/${slug}/request`}>{t("get_quote")}</Link>
-          <Link className="btn ghost-light" to={`/s/${slug}/about`}>{c.ctaAbout}</Link>
-        </div>
-        <ul className="chips">
-          {c.chips.map((x) => <li key={x}>{x}</li>)}
-        </ul>
-      </section>
-
-      <section className="block">
-        <div className="two-col">
-          <div>
-            <h2>{c.introTitle}</h2>
-            <p className="lead">{c.introText}</p>
+      <section className="home-hero" style={{ backgroundImage: "url(/img/residential.jpg)" }}>
+        <div className="home-hero-inner">
+          <span className="badge-pill">{h.badge}</span>
+          <h1>{h.title} <span className="hi">{h.titleHi}</span></h1>
+          <p className="lead">{h.lead}</p>
+          <div className="hero-actions">
+            <Link className="btn btn-sun btn-lg" to={`${base}/request`}><Icon name="clipboard" size={18} /> {s.common.freeSurvey}</Link>
+            <Link className="btn btn-outline-light btn-lg" to={`${base}/how-it-works`}>{h.ctaHow} <Icon name="arrow" size={18} /></Link>
           </div>
-          <div className="callout">
-            <strong>{c.flowNote}</strong>
-          </div>
+          <ul className="trust">
+            {h.trust.map((t) => (
+              <li key={t.title}><Icon name={t.icon} size={26} /><span>{t.title}</span></li>
+            ))}
+          </ul>
         </div>
-        <SolarFlow steps={c.flow} />
       </section>
 
-      <section className="block">
-        <h2>{c.benefitsTitle}</h2>
-        <p className="muted">{c.benefitsLead}</p>
-        <IconCards items={c.benefits} />
-      </section>
-
-      <section className="block">
-        <h2>{c.systemsTitle}</h2>
-        <p className="muted">{c.systemsLead}</p>
-        <IconCards items={c.systems} />
-      </section>
-
-      <section className="block">
-        <h2>{c.whoTitle}</h2>
-        <IconCards items={c.who} />
-      </section>
-
-      <section className="block card savings">
-        <h2>{c.savingsTitle}</h2>
-        <ul className="ticks">
-          {c.savingsPoints.map((p) => <li key={p}>{p}</li>)}
-        </ul>
-        <div className="note">{c.savingsNote}</div>
-      </section>
-
-      <section className="block card">
-        <h2>{t("how_it_works")}</h2>
-        <ol className="steps">
-          <li>{t("step1")}</li>
-          <li>{t("step2")}</li>
-          <li>{t("step3")}</li>
-          <li>{t("step4")}</li>
-        </ol>
-      </section>
-
-      <section className="block">
-        <h2>{c.faqTitle}</h2>
-        <div className="faq">
-          {c.faq.map((f, i) => (
-            <div className={`faq-item ${open === i ? "open" : ""}`} key={f.q}>
-              <button className="faq-q" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
-                <span>{f.q}</span>
-                <span aria-hidden="true">{open === i ? "−" : "+"}</span>
-              </button>
-              {open === i && <div className="faq-a">{f.a}</div>}
-            </div>
+      <section className="sec">
+        <SectionHead eyebrow={h.solEyebrow} title={h.solTitle} lead={h.solLead} />
+        <div className="sol-grid">
+          {h.solutions.map((x, i) => (
+            <Reveal key={x.key} delay={i * 80}>
+              <Link className="sol-card" to={`${base}/${x.key}`}>
+                <div className="sol-img" style={{ backgroundImage: `url(${x.image})` }} />
+                <div className="sol-body">
+                  <span className="sol-icon"><Icon name={x.icon} size={28} /></span>
+                  <div>
+                    <h3>{x.title}</h3>
+                    <p>{x.text}</p>
+                    <span className="more">{s.common.explore} <Icon name="arrow" size={16} /></span>
+                  </div>
+                </div>
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      <section className="cta-band">
-        <h2>{c.ctaTitle}</h2>
-        <p>{c.ctaText}</p>
-        <div className="hero-actions" style={{ justifyContent: "center" }}>
-          <Link className="btn" to={`/s/${slug}/request`}>{nav.quote}</Link>
-          <Link className="btn ghost-light" to={`/s/${slug}/login`}>{t("check_status")}</Link>
+      <section className="sec">
+        <SavingsCalculator compact />
+      </section>
+
+      <section className="sec">
+        <SectionHead eyebrow={h.stepsEyebrow} title={h.stepsTitle} />
+        <div className="steps-row">
+          {s.how.steps.map((st, i) => (
+            <Fragment key={st.title}>
+              {i > 0 && <span className="steps-arrow" aria-hidden="true"><Icon name="arrow" /></span>}
+              <Reveal delay={i * 90} className="step-mini">
+                <span className={`step-circle${i === s.how.steps.length - 1 ? " last" : ""}`}><Icon name={st.icon} size={28} /></span>
+                <h3>{i + 1}. {st.title}</h3>
+                <p>{st.text}</p>
+              </Reveal>
+            </Fragment>
+          ))}
         </div>
       </section>
 
-      <section className="card contact">
-        <h2>{info?.name}</h2>
-        <p className="muted">{info?.address}</p>
-        <p>{info?.phone && <a href={`tel:${info.phone.replace(/\s/g, "")}`}>{info.phone}</a>}</p>
+      <section className="sec sec-tint">
+        <SectionHead eyebrow={h.whyEyebrow} title={h.whyTitle} lead={old.benefitsLead} />
+        <FeatureGrid items={old.benefits.map((b, i) => ({ icon: BENEFIT_ICONS[i] ?? "sun", title: b.title, text: b.text }))} />
       </section>
+
+      {projects.length > 0 && (
+        <section className="sec">
+          <div className="sec-head-row">
+            <SectionHead center={false} title={h.projectsTitle} lead={h.projectsLead} />
+            <Link className="link-more" to={`${base}/projects`}>{s.common.viewAll} <Icon name="arrow" size={16} /></Link>
+          </div>
+          <div className="proj-grid">
+            {projects.map((p) => <ProjectCard key={p.title + p.capacity} p={p} />)}
+          </div>
+        </section>
+      )}
+
+      <Faq title={old.faqTitle} items={old.faq} />
+      <CtaBand />
     </>
   );
 }
